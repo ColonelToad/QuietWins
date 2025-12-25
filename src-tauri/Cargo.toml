@@ -27,4 +27,5 @@ rusqlite = { version = "0.30", features = ["bundled"] }
 time = "0.3"
 
 tauri-plugin-global-shortcut = "2"
+image = "0.25.9"
 

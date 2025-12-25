@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
   // Placeholder for weekly recap logic
-  export let wins = [];
+  import type { Win } from '../lib/tauri';
+  export let wins: Win[] = [];
 </script>
 
 <main>

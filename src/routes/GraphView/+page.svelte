@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getTagGraph, getWins, type Win } from '../lib/tauri';
+  import { getTagGraph, getWins, type Win } from '../../lib/tauri';
   import { Network, DataSet, Node, Edge } from 'vis-network/standalone';
   import { goto } from '$app/navigation';
 
@@ -12,6 +12,7 @@
   let filteredWins: Win[] = [];
   let nodesDS: DataSet<Node>;
   let edgesDS: DataSet<Edge>;
+  let errorMsg: string | null = null;
 
   function exportAsImage(): void {
     if (!network) return;
@@ -38,34 +39,37 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-
-
   onMount(async () => {
-    tagGraph = await getTagGraph();
-    wins = await getWins();
-    nodesDS = new DataSet<Node>(
-      tagGraph.nodes.map((tag) => ({ id: tag, label: tag }))
-    );
-    edgesDS = new DataSet<Edge>(
-      tagGraph.edges.map(([from, to]) => ({ from, to }))
-    );
-    network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
-      nodes: { shape: 'dot', size: 18, font: { size: 16 } },
-      edges: { color: '#aaa', width: 2, smooth: true },
-      physics: { stabilization: true },
-      interaction: { hover: true, navigationButtons: true, selectable: true }
-    });
-    network.on('click', function(params) {
-      if (params.nodes.length > 0) {
-        selectedTag = params.nodes[0] as string;
-        filterGraph(selectedTag);
-        filterWins(selectedTag);
-      } else {
-        selectedTag = null;
-        clearFilter();
-        filteredWins = [];
-      }
-    });
+    try {
+      tagGraph = await getTagGraph();
+      wins = await getWins();
+      nodesDS = new DataSet<Node>(
+        tagGraph.nodes.map((tag) => ({ id: tag, label: tag }))
+      );
+      edgesDS = new DataSet<Edge>(
+        tagGraph.edges.map(([from, to]) => ({ from, to }))
+      );
+      network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
+        nodes: { shape: 'dot', size: 18, font: { size: 16 } },
+        edges: { color: '#aaa', width: 2, smooth: true },
+        physics: { stabilization: true },
+        interaction: { hover: true, navigationButtons: true, selectable: true }
+      });
+      network.on('click', function(params) {
+        if (params.nodes.length > 0) {
+          selectedTag = params.nodes[0] as string;
+          filterGraph(selectedTag);
+          filterWins(selectedTag);
+        } else {
+          selectedTag = null;
+          clearFilter();
+          filteredWins = [];
+        }
+      });
+    } catch (err) {
+      console.error('GraphView error:', err);
+      errorMsg = typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err);
+    }
   });
 
   function filterWins(tag: string | null) {
@@ -110,39 +114,41 @@
   }
 </script>
 
-
 <main>
   <h2>Tag Graph</h2>
-  <div class="export-bar">
-    <button on:click={exportAsImage}>Export as Image</button>
-    <button on:click={exportAsJSON}>Export as JSON</button>
-  </div>
-  <div bind:this={networkContainer} class="graph-container"></div>
-  {#if selectedTag}
-    <div class="tag-details">
-      <strong>Selected Tag:</strong> {selectedTag}
-      <button on:click={openLogForTag}>Show Wins</button>
-      <button on:click={() => { selectedTag = null; clearFilter(); filteredWins = []; }}>Clear Filter</button>
-      <div class="win-list">
-        <h3>Wins with "{selectedTag}"</h3>
-        {#if filteredWins.length === 0}
-          <div class="empty">No wins found for this tag.</div>
-        {:else}
-          <ul>
-            {#each filteredWins as win}
-              <li>
-                <div class="win-date">{win.date}</div>
-                <div class="win-text">{win.text}</div>
-                <div class="win-tags">Tags: {win.tags}</div>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
+  {#if errorMsg}
+    <div class="error">Error: {errorMsg}</div>
+  {:else}
+    <div class="export-bar">
+      <button on:click={exportAsImage}>Export as Image</button>
+      <button on:click={exportAsJSON}>Export as JSON</button>
     </div>
+    <div bind:this={networkContainer} class="graph-container"></div>
+    {#if selectedTag}
+      <div class="tag-details">
+        <strong>Selected Tag:</strong> {selectedTag}
+        <button on:click={openLogForTag}>Show Wins</button>
+        <button on:click={() => { selectedTag = null; clearFilter(); filteredWins = []; }}>Clear Filter</button>
+        <div class="win-list">
+          <h3>Wins with "{selectedTag}"</h3>
+          {#if filteredWins.length === 0}
+            <div class="empty">No wins found for this tag.</div>
+          {:else}
+            <ul>
+              {#each filteredWins as win}
+                <li>
+                  <div class="win-date">{win.date}</div>
+                  <div class="win-text">{win.text}</div>
+                  <div class="win-tags">Tags: {win.tags}</div>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      </div>
+    {/if}
   {/if}
 </main>
-
 
 <style>
 main {
@@ -199,31 +205,13 @@ main {
   font-size: 0.95em;
   color: #888;
 }
-.win-text {
-  font-size: 1.08em;
-  margin: 0.2em 0 0.3em 0;
-}
-.win-tags {
-  font-size: 0.92em;
-  color: #666;
-}
-.empty {
-  color: #999;
-  font-style: italic;
-  margin-top: 0.5em;
-}
-button {
-  margin-left: 1rem;
-  padding: 0.4rem 1.2rem;
-  border-radius: 6px;
-  border: none;
-  background: #007aff;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-button:hover {
-  background: #005bb5;
+.error {
+  color: #b00020;
+  background: #ffeaea;
+  border: 1px solid #b00020;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
 }
 </style>
-

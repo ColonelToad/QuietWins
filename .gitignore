@@ -23,3 +23,4 @@ vite.config.ts.timestamp-*
 # SvelteKit build
 /.svelte-kit
 /build
+/docs

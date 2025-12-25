@@ -1,17 +1,20 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import { addWin } from '../lib/tauri';
+  import Settings from 'lucide-svelte/icons/settings';
+  import { goto } from '$app/navigation';
   const dispatch = createEventDispatcher();
   let text = '';
-  let tags = '';
+  let showBanner = false;
 
   async function save() {
     const date = new Date().toISOString().slice(0, 10);
     try {
-      await addWin(date, text, tags);
-      dispatch('save', { text, tags });
+      await addWin(date, text, '');
+      dispatch('save', { text });
       text = '';
-      tags = '';
+      showBanner = true;
+      setTimeout(() => showBanner = false, 2000);
     } catch (e) {
       alert('Failed to save win: ' + e);
     }
@@ -19,14 +22,24 @@
   function cancel() {
     dispatch('cancel');
   }
+  function openSettings() {
+    goto('/Settings');
+  }
 </script>
 
 <div class="input-window">
+  <button class="settings-btn" on:click={openSettings} title="Settings">
+    <Settings class="settings-icon" />
+  </button>
   <textarea bind:value={text} placeholder="Log your quiet win..." rows="4"></textarea>
-  <input type="text" bind:value={tags} placeholder="Tags (comma separated)" />
-  <div class="actions">
-    <button on:click={save}>Save</button>
-    <button on:click={cancel}>Cancel</button>
+  <div class="actions-row">
+    <div class="actions">
+      <button on:click={save}>Save</button>
+      <button on:click={cancel}>Cancel</button>
+    </div>
+    {#if showBanner}
+      <div class="banner bottom-left">Win logged!</div>
+    {/if}
   </div>
 </div>
 
@@ -44,7 +57,50 @@
   min-width: 320px;
   z-index: 9999;
 }
-textarea, input {
+ .settings-btn {
+   position: absolute;
+   top: 1rem;
+   left: 1rem;
+   background: none;
+   border: none;
+   cursor: pointer;
+   padding: 0.2rem;
+   border-radius: 50%;
+   transition: background 0.2s;
+ }
+ .settings-btn:hover {
+   background: #f3e7e2;
+ }
+  .actions-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    gap: 1.2rem;
+  }
+  .banner.bottom-left {
+    position: relative;
+    left: 0;
+    background: #CC785C;
+    color: #fff;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-family: inherit;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    animation: fadein 0.3s;
+    margin-left: 0.5rem;
+  }
+  @keyframes fadein {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+ @keyframes fadein {
+   from { opacity: 0; }
+   to { opacity: 1; }
+ }
+textarea {
   width: 100%;
   margin-bottom: 1rem;
   font-size: 1rem;
