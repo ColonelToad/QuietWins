@@ -1,31 +1,40 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getTagGraph, getWins, type Win } from '../../lib/tauri';
-  import { Network, DataSet, Node, Edge } from 'vis-network/standalone';
+  import * as d3 from 'd3';
   import { goto } from '$app/navigation';
 
   let networkContainer: HTMLDivElement;
-  let network: Network;
+  let svgEl: SVGSVGElement;
   let tagGraph: { nodes: string[]; edges: [string, string][] } = { nodes: [], edges: [] };
   let selectedTag: string | null = null;
   let wins: Win[] = [];
   let filteredWins: Win[] = [];
-  let nodesDS: DataSet<Node>;
-  let edgesDS: DataSet<Edge>;
+  // D3 doesn't need DataSet, will use arrays
   let errorMsg: string | null = null;
 
   function exportAsImage(): void {
-    if (!network) return;
-    // vis-network uses a canvas, so we can get a PNG data URL
-    // The correct way to access the canvas is through network.body.canvas.frame.canvas
-    // See: https://github.com/visjs/vis-network/issues/1041 and code inspection
-    const canvasEl = (network as any)?.body?.canvas?.frame?.canvas as HTMLCanvasElement | undefined;
-    if (!canvasEl) return;
-    const dataUrl: string = canvasEl.toDataURL();
-    const link: HTMLAnchorElement = document.createElement('a');
-    link.href = dataUrl;
-    link.download = 'tag-graph.png';
-    link.click();
+    if (!svgEl) return;
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgEl);
+    const canvas = document.createElement('canvas');
+    const bbox = svgEl.getBBox();
+    canvas.width = bbox.width + 40;
+    canvas.height = bbox.height + 40;
+    const ctx = canvas.getContext('2d');
+    const img = new window.Image();
+    const svg64 = btoa(unescape(encodeURIComponent(svgString)));
+    const image64 = 'data:image/svg+xml;base64,' + svg64;
+    img.onload = function () {
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      ctx?.drawImage(img, 20, 20);
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'tag-graph.png';
+      link.click();
+    };
+    img.src = image64;
   }
 
   function exportAsJSON(): void {
@@ -42,35 +51,94 @@
   onMount(async () => {
     try {
       tagGraph = await getTagGraph();
-      wins = await getWins();
-      nodesDS = new DataSet<Node>(
-        tagGraph.nodes.map((tag) => ({ id: tag, label: tag }))
-      );
-      edgesDS = new DataSet<Edge>(
-        tagGraph.edges.map(([from, to]) => ({ from, to }))
-      );
-      network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
-        nodes: { shape: 'dot', size: 18, font: { size: 16 } },
-        edges: { color: '#aaa', width: 2, smooth: true },
-        physics: { stabilization: true },
-        interaction: { hover: true, navigationButtons: true, selectable: true }
-      });
-      network.on('click', function(params) {
-        if (params.nodes.length > 0) {
-          selectedTag = params.nodes[0] as string;
-          filterGraph(selectedTag);
-          filterWins(selectedTag);
-        } else {
-          selectedTag = null;
-          clearFilter();
-          filteredWins = [];
-        }
-      });
     } catch (err) {
-      console.error('GraphView error:', err);
-      errorMsg = typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err);
+      console.error('GraphView getTagGraph error:', err);
+      errorMsg = `Failed to load tag graph: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
+      return;
     }
+    try {
+      wins = await getWins();
+    } catch (err) {
+      console.error('GraphView getWins error:', err);
+      errorMsg = `Failed to load wins: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
+      return;
+    }
+    // D3 rendering
+    renderD3Graph();
   });
+
+  function renderD3Graph() {
+    if (!networkContainer) return;
+    // Remove previous SVG if any
+    networkContainer.innerHTML = '';
+    const width = networkContainer.clientWidth || 800;
+    const height = 500;
+    const svg = d3.select(networkContainer)
+      .append('svg')
+      .attr('width', width)
+      .attr('height', height)
+      .attr('style', 'background: #fff; border-radius: 10px;');
+    svgEl = svg.node() as SVGSVGElement;
+
+    // Prepare data
+    const nodes: { id: string; x?: number; y?: number }[] = tagGraph.nodes.map(tag => ({ id: tag }));
+    const links: { source: string; target: string }[] = tagGraph.edges.map(([source, target]) => ({ source, target }));
+
+    const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id((d: { id: string }) => d.id).distance(80))
+      .force('charge', d3.forceManyBody().strength(-220))
+      .force('center', d3.forceCenter(width / 2, height / 2));
+
+    // Draw links
+    const link = svg.append('g')
+      .attr('stroke', '#aaa')
+      .attr('stroke-width', 2)
+      .selectAll('line')
+      .data(links)
+      .enter().append('line');
+
+    // Draw nodes
+    const node = svg.append('g')
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1.5)
+      .selectAll('circle')
+      .data(nodes)
+      .enter().append('circle')
+      .attr('r', 18)
+      .attr('fill', (d: { id: string }) => selectedTag === d.id ? '#007aff' : '#f7b267')
+      .attr('cursor', 'pointer')
+      .on('click', (event: MouseEvent, d: { id: string }) => {
+        selectedTag = d.id;
+        filterGraph(selectedTag);
+        filterWins(selectedTag);
+        renderD3Graph();
+      });
+
+    // Draw labels
+    const label = svg.append('g')
+      .selectAll('text')
+      .data(nodes)
+      .enter().append('text')
+      .text((d: { id: string }) => d.id)
+      .attr('font-size', 14)
+      .attr('text-anchor', 'middle')
+      .attr('dy', 5)
+      .attr('pointer-events', 'none');
+
+    simulation.on('tick', () => {
+      link
+        .attr('x1', (d: any) => (d.source as { x: number }).x)
+        .attr('y1', (d: any) => (d.source as { y: number }).y)
+        .attr('x2', (d: any) => (d.target as { x: number }).x)
+        .attr('y2', (d: any) => (d.target as { y: number }).y);
+      node
+        .attr('cx', (d: { x: number }) => d.x)
+        .attr('cy', (d: { y: number }) => d.y);
+      label
+        .attr('x', (d: { x: number }) => d.x)
+        .attr('y', (d: { y: number }) => d.y);
+    });
+  }
 
   function filterWins(tag: string | null) {
     if (!tag) {
@@ -81,72 +149,44 @@
   }
 
   function filterGraph(tag: string | null) {
-    if (!tag) return;
-    // Find neighbors
-    const neighbors = new Set<string>();
-    tagGraph.edges.forEach(([from, to]) => {
-      if (from === tag) neighbors.add(to);
-      if (to === tag) neighbors.add(from);
-    });
-    neighbors.add(tag);
-    // Update node/edge styles
-    nodesDS.forEach((node) => {
-      nodesDS.update({ id: node.id, color: neighbors.has(node.id as string) ? undefined : { background: '#eee', border: '#ccc' }, font: { color: neighbors.has(node.id as string) ? '#222' : '#bbb' } });
-    });
-    edgesDS.forEach((edge) => {
-      const show = neighbors.has(edge.from as string) && neighbors.has(edge.to as string);
-      edgesDS.update({ id: edge.id, color: show ? '#aaa' : '#eee' });
-    });
+    // D3: just re-render with new selectedTag
+    renderD3Graph();
   }
 
   function clearFilter() {
-    // Restore all node/edge styles
-    nodesDS.forEach((node) => {
-      nodesDS.update({ id: node.id, color: undefined, font: { color: '#222' } });
-    });
-    edgesDS.forEach((edge) => {
-      edgesDS.update({ id: edge.id, color: '#aaa' });
-    });
+    selectedTag = null;
+    filteredWins = [];
+    renderD3Graph();
   }
 
-  function openLogForTag() {
-    if (selectedTag) goto(`/LogView?tag=${encodeURIComponent(selectedTag)}`);
-  }
 </script>
 
 <main>
-  <h2>Tag Graph</h2>
-  {#if errorMsg}
-    <div class="error">Error: {errorMsg}</div>
-  {:else}
-    <div class="export-bar">
-      <button on:click={exportAsImage}>Export as Image</button>
-      <button on:click={exportAsJSON}>Export as JSON</button>
-    </div>
-    <div bind:this={networkContainer} class="graph-container"></div>
+  <div class="export-bar">
+    <button on:click={exportAsImage}>Export as Image</button>
+    <button on:click={exportAsJSON}>Export as JSON</button>
     {#if selectedTag}
-      <div class="tag-details">
-        <strong>Selected Tag:</strong> {selectedTag}
-        <button on:click={openLogForTag}>Show Wins</button>
-        <button on:click={() => { selectedTag = null; clearFilter(); filteredWins = []; }}>Clear Filter</button>
-        <div class="win-list">
-          <h3>Wins with "{selectedTag}"</h3>
-          {#if filteredWins.length === 0}
-            <div class="empty">No wins found for this tag.</div>
-          {:else}
-            <ul>
-              {#each filteredWins as win}
-                <li>
-                  <div class="win-date">{win.date}</div>
-                  <div class="win-text">{win.text}</div>
-                  <div class="win-tags">Tags: {win.tags}</div>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      </div>
+      <button on:click={clearFilter}>Clear Tag Filter</button>
     {/if}
+  </div>
+  <div bind:this={networkContainer} class="graph-container"></div>
+  {#if errorMsg}
+    <div class="error">{errorMsg}</div>
+  {/if}
+  {#if selectedTag}
+    <div class="tag-details">
+      <h2>Tag: {selectedTag}</h2>
+      <div class="win-list">
+        <ul>
+          {#each filteredWins as win}
+            <li>
+              <div class="win-date">{win.date}</div>
+              <div>{win.text}</div>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    </div>
   {/if}
 </main>
 

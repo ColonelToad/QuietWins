@@ -5,8 +5,15 @@
   import { goto } from '$app/navigation';
   let wins: Win[] = [];
 
+
+  let errorMsg: string | null = null;
   onMount(async () => {
-    wins = await getWins();
+    try {
+      wins = await getWins();
+    } catch (err) {
+      errorMsg = `Failed to load wins: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
+      console.error('LogView getWins error:', err);
+    }
   });
 
   function openSettings() {
@@ -24,6 +31,9 @@
       </button>
     </div>
   </div>
+  {#if errorMsg}
+    <div class="error">{errorMsg}</div>
+  {/if}
   {#each wins as win (win.id)}
     <section>
       <div>{win.date}</div>

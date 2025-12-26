@@ -1,99 +1,82 @@
+
 <script lang="ts">
-  // import { settings, type Settings } from '../lib/settings';
+  import { settings, type Settings } from '../../lib/settings';
   import { get } from 'svelte/store';
-  // let theme: Settings['theme'];
-  // let icon: Settings['icon'];
-  // let notifTime: Settings['notifTime'];
-  // let notifSound: Settings['notifSound'];
-  // let shortcut: Settings['shortcut'];
-  // let font: Settings['font'];
-  // let autoTag: Settings['autoTag'];
-  // let privacyLock: Settings['privacyLock'];
-  // let startup: Settings['startup'];
+  let theme: Settings['theme'];
+  let icon: Settings['icon'];
+  let notifTime: Settings['notifTime'];
+  let notifSound: Settings['notifSound'];
+  let shortcut: Settings['shortcut'];
+  let font: Settings['font'];
+  let autoTag: Settings['autoTag'];
+  let privacyLock: Settings['privacyLock'];
+  let startup: Settings['startup'];
 
-  // $: ({ theme, icon, notifTime, notifSound, shortcut, font, autoTag, privacyLock, startup } = $settings);
+  $: ({ theme, icon, notifTime, notifSound, shortcut, font, autoTag, privacyLock, startup } = $settings);
 
-  // function saveSettings() {
-  //   settings.set({ theme, icon, notifTime, notifSound, shortcut, font, autoTag, privacyLock, startup });
-  //   alert('Settings saved!');
-  // }
+  function saveSettings() {
+    settings.set({ theme, icon, notifTime, notifSound, shortcut, font, autoTag, privacyLock, startup });
+    alert('Settings saved!');
+  }
 </script>
 
 <main class="settings">
   <h2>Settings</h2>
   <div class="setting-group">
-     <!--
-     <label for="theme-select">App Color Theme:</label>
-     <select id="theme-select" bind:value={theme}>
+    <label for="theme-select">App Color Theme:</label>
+    <select id="theme-select" bind:value={theme}>
       <option value="light">Light</option>
       <option value="dark">Dark</option>
       <option value="warm">Warm</option>
       <option value="custom">Custom</option>
-     </select>
-     -->
+    </select>
   </div>
   <div class="setting-group">
-     <!--
-     <label for="icon-select">App Icon Color:</label>
-     <select id="icon-select" bind:value={icon}>
+    <label for="icon-select">App Icon Color:</label>
+    <select id="icon-select" bind:value={icon}>
       <option value="light">Light</option>
       <option value="dark">Dark</option>
       <option value="warm">Warm</option>
       <option value="custom">Custom</option>
-     </select>
-     <span class="note">(Requires app restart)</span>
-     -->
+    </select>
+    <span class="note">(Requires app restart)</span>
   </div>
   <div class="setting-group">
-     <!--
-     <label for="notif-time">Notification Time:</label>
-     <input id="notif-time" type="time" bind:value={notifTime} />
-     -->
+    <label for="notif-time">Notification Time:</label>
+    <input id="notif-time" type="time" bind:value={notifTime} />
   </div>
   <div class="setting-group">
-     <!--
-     <label for="notif-sound">Notification Sound:</label>
-     <input id="notif-sound" type="checkbox" bind:checked={notifSound} />
-     -->
+    <label for="notif-sound">Notification Sound:</label>
+    <input id="notif-sound" type="checkbox" bind:checked={notifSound} />
   </div>
   <div class="setting-group">
-     <!--
-     <label for="shortcut-input">Global Shortcut:</label>
-     <input id="shortcut-input" type="text" bind:value={shortcut} />
-     <span class="note">(Requires app restart)</span>
-     -->
+    <label for="shortcut-input">Global Shortcut:</label>
+    <input id="shortcut-input" type="text" bind:value={shortcut} />
+    <span class="note">(Requires app restart)</span>
   </div>
   <div class="setting-group">
-     <!--
-     <label for="font-select">Font:</label>
-     <select id="font-select" bind:value={font}>
+    <label for="font-select">Font:</label>
+    <select id="font-select" bind:value={font}>
       <option value="Garamond">Garamond</option>
       <option value="SF Pro">SF Pro</option>
       <option value="Arial">Arial</option>
       <option value="Custom">Custom</option>
-     </select>
-     -->
+    </select>
   </div>
   <div class="setting-group">
-     <!--
-     <label for="auto-tag">Auto-Tagging:</label>
-     <input id="auto-tag" type="checkbox" bind:checked={autoTag} />
-     -->
+    <label for="auto-tag">Auto-Tagging:</label>
+    <input id="auto-tag" type="checkbox" bind:checked={autoTag} />
   </div>
   <div class="setting-group">
-     <!--
-     <label for="privacy-lock">Privacy Lock:</label>
-     <input id="privacy-lock" type="checkbox" bind:checked={privacyLock} />
-     -->
+    <label for="privacy-lock">Privacy Lock:</label>
+    <input id="privacy-lock" type="checkbox" bind:checked={privacyLock} />
   </div>
   <div class="setting-group">
-     <!--
-     <label for="startup">Start at Login:</label>
-     <input id="startup" type="checkbox" bind:checked={startup} />
-     <span class="note">(Requires app restart)</span>
-     -->
+    <label for="startup">Start at Login:</label>
+    <input id="startup" type="checkbox" bind:checked={startup} />
+    <span class="note">(Requires app restart)</span>
   </div>
-    <!-- <button on:click={saveSettings}>Save Settings</button> -->
+  <button on:click={saveSettings}>Save Settings</button>
 </main>
 
 <style>
