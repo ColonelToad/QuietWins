@@ -4,6 +4,8 @@ use rusqlite::{Connection, Result};
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use tauri::Manager;
+use std::collections::HashSet;
+use crate::nlp;
 
 /// Inserts mock wins for development/testing
 pub fn insert_mock_data(app_handle: &tauri::AppHandle) -> Result<()> {
@@ -132,7 +134,7 @@ pub fn add_win(app_handle: &tauri::AppHandle, date: &str, text: &str, tags: &str
 }
 
 fn infer_tags(text: &str) -> String {
-    use std::collections::HashSet;
+    // Use rule-based tag suggestion first
     let dict = [
         (vec!["admin", "administration", "organize", "organized"], vec!["admin", "organization"]),
         (vec!["class", "lecture", "lesson"], vec!["class", "school"]),
@@ -140,19 +142,22 @@ fn infer_tags(text: &str) -> String {
         (vec!["homework", "assignment", "hw"], vec!["homework", "school"]),
         (vec!["study", "studied", "studying"], vec!["study", "school"]),
         (vec!["exam", "test", "quiz"], vec!["exam", "school"]),
-        (vec!["project", "proj"], vec!["project", "school"]),
+        (vec!["project", "proj", "draft", "essay", "writing"], vec!["project", "work", "writing"]),
         (vec!["meeting", "meet"], vec!["meeting", "admin"]),
         (vec!["email", "mail"], vec!["email", "admin"]),
-        (vec!["walk", "walking", "walked"], vec!["walk", "health"]),
-        (vec!["exercise", "workout", "exercised"], vec!["exercise", "health"]),
-        (vec!["read", "reading", "readed"], vec!["read", "learning"]),
-        (vec!["cook", "cooking", "cooked"], vec!["cook", "life"]),
-        (vec!["clean", "cleaning", "cleaned"], vec!["clean", "life"]),
+        (vec!["walk", "walking", "walked"], vec!["walk", "health", "casual recreation"]),
+        (vec!["exercise", "workout", "exercised", "yoga", "run", "running", "swim", "swimming", "pushups", "cycling", "hiit", "stretch"], vec!["exercise", "health"]),
+        (vec!["read", "reading", "readed", "book"], vec!["read", "learning"]),
+        (vec!["cook", "cooking", "cooked", "recipe", "meal", "salad"], vec!["cook", "life", "food"]),
+        (vec!["clean", "cleaning", "cleaned", "bath"], vec!["clean", "life"]),
         (vec!["call", "called", "calling"], vec!["call", "relationships"]),
         (vec!["friend", "friends"], vec!["friend", "relationships"]),
-        (vec!["family", "families"], vec!["family", "relationships"]),
+        (vec!["family", "families", "family bonding"], vec!["family", "relationships", "family bonding"]),
         (vec!["rest", "rested", "resting"], vec!["rest", "health"]),
         (vec!["sleep", "slept", "sleeping"], vec!["sleep", "health"]),
+        (vec!["casual", "recreation", "relax", "relaxing", "recreation"], vec!["casual recreation"]),
+        (vec!["work", "working", "job"], vec!["work"]),
+        (vec!["bonding"], vec!["family bonding"]),
     ];
     let mut tags = HashSet::new();
     let lower = text.to_lowercase();
@@ -164,6 +169,10 @@ fn infer_tags(text: &str) -> String {
                 }
             }
         }
+    }
+    // Fallback to NLP-based if rules return nothing
+    if tags.is_empty() {
+        tags = nlp::suggest_tags(text).into_iter().collect();
     }
     if tags.is_empty() {
         tags.insert("misc".to_string());

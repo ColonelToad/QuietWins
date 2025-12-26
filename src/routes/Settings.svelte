@@ -111,13 +111,13 @@
     padding: 0.7rem 2.2rem;
     border-radius: 8px;
     border: none;
-    background: #CC785C;
+    background: var(--accent, #CC785C);
     color: #fff;
     cursor: pointer;
     transition: background 0.2s;
   }
   button:hover {
-    background: #a95e45;
+    background: color-mix(in srgb, var(--accent, #CC785C) 80%, #000 20%);
   }
   .note {
     font-size: 0.9em;

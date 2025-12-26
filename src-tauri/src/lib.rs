@@ -5,6 +5,7 @@ fn get_tag_graph(app: tauri::AppHandle) -> Result<db::TagGraph, String> {
 mod db;
 mod tray;
 mod mock_data;
+pub mod nlp;
 
 use tauri::menu::{Menu, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
@@ -97,8 +98,23 @@ pub fn run() {
 
             app.global_shortcut().register(shortcut)?;
             
+            let app_handle = app.handle().clone(); // Clone the handle to move into thread
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(10));
+                #[cfg(target_os = "windows")]
+                {
+                    use tauri_plugin_notification::NotificationExt;
+                    let _ = app_handle.notification()
+                        .builder()
+                        .title("Quiet Wins")
+                        .body("Don't forget to log your quiet win today!")
+                        .show();
+                }
+            });
+            
             Ok(())
         })
+        .plugin(tauri_plugin_notification::init()) 
         .invoke_handler(tauri::generate_handler![add_win, get_wins, get_tag_graph])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,6 +3,8 @@
   import { getTagGraph, getWins, type Win } from '../lib/tauri';
   import { Network, DataSet, Node, Edge } from 'vis-network/standalone';
   import { goto } from '$app/navigation';
+  import { save } from '@tauri-apps/api/dialog';
+  import { writeBinaryFile, writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
 
   let networkContainer: HTMLDivElement;
   let network: Network;
@@ -13,29 +15,41 @@
   let nodesDS: DataSet<Node>;
   let edgesDS: DataSet<Edge>;
 
-  function exportAsImage(): void {
+  async function exportAsImage() {
     if (!network) return;
-    // vis-network uses a canvas, so we can get a PNG data URL
-    // The correct way to access the canvas is through network.body.canvas.frame.canvas
-    // See: https://github.com/visjs/vis-network/issues/1041 and code inspection
     const canvasEl = (network as any)?.body?.canvas?.frame?.canvas as HTMLCanvasElement | undefined;
     if (!canvasEl) return;
-    const dataUrl: string = canvasEl.toDataURL();
-    const link: HTMLAnchorElement = document.createElement('a');
-    link.href = dataUrl;
-    link.download = 'tag-graph.png';
-    link.click();
+    const dataUrl: string = canvasEl.toDataURL('image/png');
+    // Convert base64 to binary
+    const base64 = dataUrl.split(',')[1];
+    const binary = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    // Remember last dir
+    let lastDir = localStorage.getItem('qw-last-export-dir') || undefined;
+    const filePath = await save({
+      defaultPath: lastDir ? `${lastDir}/tag-graph.png` : 'tag-graph.png',
+      filters: [{ name: 'PNG Image', extensions: ['png'] }]
+    });
+    if (filePath) {
+      // Save file
+      await writeBinaryFile({ path: filePath, contents: binary });
+      // Remember dir
+      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+      localStorage.setItem('qw-last-export-dir', dir);
+    }
   }
 
-  function exportAsJSON(): void {
+  async function exportAsJSON() {
     const json: string = JSON.stringify(tagGraph, null, 2);
-    const blob: Blob = new Blob([json], { type: 'application/json' });
-    const url: string = URL.createObjectURL(blob);
-    const link: HTMLAnchorElement = document.createElement('a');
-    link.href = url;
-    link.download = 'tag-graph.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    let lastDir = localStorage.getItem('qw-last-export-dir') || undefined;
+    const filePath = await save({
+      defaultPath: lastDir ? `${lastDir}/tag-graph.json` : 'tag-graph.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+    if (filePath) {
+      await writeTextFile({ path: filePath, contents: json });
+      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+      localStorage.setItem('qw-last-export-dir', dir);
+    }
   }
 
 
@@ -52,9 +66,11 @@
     network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
       nodes: { shape: 'dot', size: 18, font: { size: 16 } },
       edges: { color: '#aaa', width: 2, smooth: true },
-      physics: { stabilization: true },
+      physics: { stabilization: { fit: true } },  // Enable fit on stabilization
+      autoResize: true,
       interaction: { hover: true, navigationButtons: true, selectable: true }
     });
+
     network.on('click', function(params) {
       if (params.nodes.length > 0) {
         selectedTag = params.nodes[0] as string;

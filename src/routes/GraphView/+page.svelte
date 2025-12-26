@@ -77,7 +77,7 @@
       .append('svg')
       .attr('width', width)
       .attr('height', height)
-      .attr('style', 'background: #fff; border-radius: 10px;');
+      .attr('style', 'background: #fff; border-radius: 10px; display: block; margin: 0 auto;');
     svgEl = svg.node() as SVGSVGElement;
 
     // Prepare data
@@ -138,6 +138,16 @@
         .attr('x', (d: { x: number }) => d.x)
         .attr('y', (d: { y: number }) => d.y);
     });
+
+    // Recenter on window resize
+    window.addEventListener('resize', recenterGraph);
+    function recenterGraph() {
+      const w = networkContainer.clientWidth || 800;
+      const h = 500;
+      svg.attr('width', w).attr('height', h);
+      simulation.force('center', d3.forceCenter(w / 2, h / 2));
+      simulation.alpha(0.3).restart();
+    }
   }
 
   function filterWins(tag: string | null) {
