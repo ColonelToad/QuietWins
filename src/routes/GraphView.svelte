@@ -44,8 +44,9 @@
     const filePath = await save({
       defaultPath: lastDir ? `${lastDir}/tag-graph.json` : 'tag-graph.json',
       filters: [{ name: 'JSON', extensions: ['json'] }]
-    });
-    if (filePath) {
+        let wins: Win[] = [];
+        let filteredWins: Win[] = [];
+        let timeFilter = '30'; // '7' or '30'
       await writeTextFile({ path: filePath, contents: json });
       const dir = filePath.substring(0, filePath.lastIndexOf('/'));
       localStorage.setItem('qw-last-export-dir', dir);
@@ -63,12 +64,68 @@
     edgesDS = new DataSet<Edge>(
       tagGraph.edges.map(([from, to]) => ({ from, to }))
     );
+    // Get theme colors from CSS variables
+    const getVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name) || fallback;
+    const bgColor = getVar('--background', '#fff').trim();
+    const textColor = getVar('--text', '#222').trim();
+    const accentColor = getVar('--accent', '#CC785C').trim();
     network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
-      nodes: { shape: 'dot', size: 18, font: { size: 16 } },
-      edges: { color: '#aaa', width: 2, smooth: true },
-      physics: { stabilization: { fit: true } },  // Enable fit on stabilization
+      nodes: {
+        shape: 'dot',
+        size: 18,
+        font: { size: 16, color: textColor },
+        color: {
+          background: accentColor,
+          border: textColor,
+          highlight: { background: textColor, border: accentColor },
+          hover: { background: accentColor, border: textColor }
+        }
+      },
+      edges: {
+        color: {
+          color: textColor,
+          highlight: accentColor,
+        function applyTimeFilter() {
+          const days = parseInt(timeFilter);
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - days + 1);
+          return wins.filter(win => {
+            if (!win.date) return false;
+            const d = new Date(win.date);
+            return d >= cutoff;
+          });
+        }
+          hover: accentColor,
+          inherit: false
+        },
+        width: 2,
+          wins = wins.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          filteredWins = applyTimeFilter();
+        smooth: true
+      },
+      physics: { stabilization: { fit: true } },
       autoResize: true,
-      interaction: { hover: true, navigationButtons: true, selectable: true }
+      interaction: {
+        hover: true,
+        navigationButtons: true,
+        selectable: true,
+        zoomView: true,
+        dragView: true
+      },
+      layout: { improvedLayout: true },
+      locale: 'en',
+      manipulation: false
+    });
+    // Set background color
+    networkContainer.style.background = bgColor;
+
+    // Center and fit the graph after stabilization
+    network.once('stabilizationIterationsDone', function() {
+      network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+    });
+    // Also fit on resize
+    window.addEventListener('resize', () => {
+      network.fit({ animation: false });
     });
 
     network.on('click', function(params) {
@@ -117,10 +174,10 @@
       nodesDS.update({ id: node.id, color: undefined, font: { color: '#222' } });
     });
     edgesDS.forEach((edge) => {
-      edgesDS.update({ id: edge.id, color: '#aaa' });
+            filteredWins = applyTimeFilter();
     });
   }
-
+          filteredWins = applyTimeFilter().filter(win => win.tags && win.tags.split(/[,\[\]"]+/).map(t => t.trim()).filter(Boolean).includes(tag));
   function openLogForTag() {
     if (selectedTag) goto(`/LogView?tag=${encodeURIComponent(selectedTag)}`);
   }
@@ -162,6 +219,15 @@
 
 <style>
 main {
+          <span style="margin-left:2em">
+            <label>Show last
+              <select bind:value={timeFilter} on:change={() => { filteredWins = applyTimeFilter(); if (selectedTag) filterWins(selectedTag); }}>
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+              </select>
+              days
+            </label>
+          </span>
   font-family: 'SF Pro', 'San Francisco', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   padding: 2rem;
 }
@@ -172,6 +238,8 @@ main {
   border-radius: 10px;
   margin-bottom: 1.5rem;
   background: #fff;
+  overflow: auto;
+  /* Allow scrollbars if needed */
 }
 .export-bar {
   margin-bottom: 1rem;

@@ -17,6 +17,28 @@
     settings.set({ theme, icon, notifTime, notifSound, shortcut, font, autoTag, privacyLock, startup });
     alert('Settings saved!');
   }
+
+  // Test OS-level notification using Tauri's JS API
+  async function testNotification() {
+    try {
+      const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/api/notification');
+      let permissionGranted = await isPermissionGranted();
+      if (!permissionGranted) {
+        const permission = await requestPermission();
+        permissionGranted = permission === 'granted';
+      }
+      if (permissionGranted) {
+        sendNotification({
+          title: 'Quiet Wins',
+          body: "Don't forget to log your quiet win today!",
+        });
+      } else {
+        alert('Notification permission not granted.');
+      }
+    } catch (e) {
+      alert('Tauri notification API not available.');
+    }
+  }
 </script>
 
 <main class="settings">
@@ -76,6 +98,7 @@
     <span class="note">(Requires app restart)</span>
   </div>
   <button on:click={saveSettings}>Save Settings</button>
+  <button on:click={testNotification} style="margin-left:1em">Test Notification</button>
 </main>
 
 <style>

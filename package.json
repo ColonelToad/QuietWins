@@ -15,6 +15,7 @@
   "dependencies": {
     "@fiahfy/icns": "^0.0.7",
     "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2",
     "d3": "^7.9.0",
     "lucide-svelte": "^0.562.0",

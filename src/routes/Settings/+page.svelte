@@ -38,6 +38,7 @@
     'Courier New',
     'Custom'
   ];
+// ...existing code...
   function selectFont(font: string) {
     settings.update(s => ({ ...s, font }));
     showFontList = false;
@@ -139,7 +140,6 @@
   <div class="setting-group">
     <label for="auto-tag">Auto-Tagging:</label>
     <input id="auto-tag" type="checkbox" bind:checked={$settings.autoTag} />
-    <button type="button" class="see-more-btn" on:click={() => showTagInfo = true}>See More</button>
   </div>
   {#if showTagInfo}
     <div class="modal-backdrop">
@@ -265,7 +265,29 @@
     margin-bottom: 1.2rem;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 1.2rem;
+  }
+  .setting-group label {
+    min-width: 140px;
+    font-weight: 500;
+    margin-right: 0.7rem;
+    flex-shrink: 0;
+  }
+  .setting-group input[type="text"],
+  .setting-group select,
+  .setting-group input[type="time"] {
+    font-size: 1rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    flex: 1 1 0;
+    min-width: 120px;
+    max-width: 220px;
+  }
+  .setting-group input[type="checkbox"] {
+    width: 1.2em;
+    height: 1.2em;
+    margin-left: 0.5em;
   }
   label {
     font-weight: 500;
