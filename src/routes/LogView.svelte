@@ -38,6 +38,20 @@
     adding = true;
     const date = new Date().toISOString().slice(0, 10);
     try {
+      await addWin({ text: newText, tags: newTags, date });
+      newText = '';
+      newTags = '';
+      await loadWins();
+    } catch (err) {
+      errorMsg = `Failed to add win: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
+      console.error('handleAddWin error:', err);
+    } finally {
+      adding = false;
+    }
+  }
+
+  async function handlePasswordSubmit() {
+    const stored = $settings.privacyPassword;
     if (!stored || passwordInput !== stored) {
       passwordError = 'Incorrect password.';
       return;
@@ -45,7 +59,7 @@
     showPasswordModal = false;
     unlocked = true;
     passwordError = '';
-    loadWins();
+    await loadWins();
   }
 </script>
 
@@ -68,14 +82,14 @@
     <div class="header">
       <h1>Quiet Wins Log</h1>
       <div class="header-actions">
-        <button class="graph-btn" on:click={() => goto('/GraphView')} title="View Tag Graph">Graph</button>
-          <button class="settings-btn" on:click={openSettings} title="Settings">
-            <Settings class="settings-icon" />
-          </button>
-          <button class="help-btn" on:click={() => goto('/onboarding')} title="Help / Onboarding" style="background:none; border:none; cursor:pointer; padding:0.2rem; border-radius:50%;">
-          <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><circle cx="14" cy="14" r="12" stroke="#888" stroke-width="2" fill="white"/><text x="14" y="19" text-anchor="middle" font-size="18" fill="#888" font-family="Arial, sans-serif">?</text></svg>
-        </button>
-      </div>
+      <button class="graph-btn" on:click={() => goto('/GraphView')} title="View Tag Graph">Graph</button>
+      <button class="settings-btn" on:click={() => goto('/Settings')} title="Settings">
+        <Settings class="settings-icon" />
+      </button>
+      <button class="help-btn" on:click={() => goto('/onboarding')} title="Help / Onboarding" style="background:none; border:none; cursor:pointer; padding:0.2rem; border-radius:50%;">
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><circle cx="14" cy="14" r="12" stroke="#888" stroke-width="2" fill="white"/><text x="14" y="19" text-anchor="middle" font-size="18" fill="#888" font-family="Arial, sans-serif">?</text></svg>
+      </button>
+    </div>
     </div>
     {#if errorMsg}
       <div class="error">{errorMsg}</div>

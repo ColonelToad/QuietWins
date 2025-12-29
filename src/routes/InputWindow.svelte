@@ -2,7 +2,7 @@
   import { normalizeTag, uniqueTags, didYouMean } from '../lib/tagUtils';
   import { getUserTagPrefs, addUserTagPref } from '../lib/userTagPrefs';
   import { createEventDispatcher, onMount } from 'svelte';
-  import { addWin } from '../lib/tauri';
+  import { addWin, suggestTagsForText } from '../lib/tauri';
   import Settings from 'lucide-svelte/icons/settings';
   import HelpCircle from 'lucide-svelte/icons/help-circle';
   import { goto } from '$app/navigation';
@@ -44,19 +44,19 @@
   }
 
   // Update tags when user moves to a new line or when current line text changes
-  function updateCurrentLineTags() {
+  async function updateCurrentLineTags() {
     const lines = getEditorLines();
     const currentLine = lines[currentLineIndex];
-    
+
     if (currentLine && currentLine.text) {
-      const suggested = suggestTags(currentLine.text);
-      
+      // Use backend for tag suggestion
+      const suggested = await suggestTagsForText(currentLine.text);
       // Only auto-populate if this line doesn't have tags yet
       if (suggested.length && (!tagsByLine[currentLineIndex] || tagsByLine[currentLineIndex].length === 0)) {
         tagsByLine[currentLineIndex] = suggested;
       }
     }
-    
+
     // Update the tag input to show current line's tags
     const currentTags = tagsByLine[currentLineIndex] || [];
     tagInput = currentTags.join(', ');

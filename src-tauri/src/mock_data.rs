@@ -9,38 +9,60 @@ pub struct MockWin<'a> {
 
 pub fn get_mock_wins() -> Vec<MockWin<'static>> {
     let mut wins = vec![
-        MockWin { date: "2025-12-01", text: "Finished a big project milestone", tags: "project,work" },
-        MockWin { date: "2025-12-02", text: "Went for a walk and cleared my head", tags: "walk,health" },
-        MockWin { date: "2025-12-03", text: "Helped a friend with homework", tags: "friend,homework,school" },
-        MockWin { date: "2025-12-04", text: "Organized my workspace", tags: "admin,organization" },
-        MockWin { date: "2025-12-05", text: "Read a new book on learning", tags: "read,learning" },
-        MockWin { date: "2025-12-06", text: "Attended a class and took notes", tags: "class,school" },
-        MockWin { date: "2025-12-07", text: "Had a great family dinner", tags: "family,relationships" },
-        MockWin { date: "2025-12-08", text: "Completed a tough exam", tags: "exam,school" },
-        MockWin { date: "2025-12-09", text: "Cleaned the house", tags: "clean,life" },
-        MockWin { date: "2025-12-10", text: "Sent important emails", tags: "email,admin" },
+        // --- Comparison Examples ---
+        // Should match exactly
+        MockWin { date: "2025-12-01", text: "Jogged in the park for 30 minutes.", tags: "jog,park,exercise,health" },
+        // Should add extra tag (system might add 'positive')
+        MockWin { date: "2025-12-02", text: "Had a wonderful dinner with family.", tags: "dinner,family,relationships" },
+        // Should have missing tag (system might miss 'relationships')
+        MockWin { date: "2025-12-03", text: "Finished a tough project milestone.", tags: "project,work,achievement" },
+        // Should add new tag (system might add 'mental')
+        MockWin { date: "2025-12-04", text: "Meditated for 20 minutes.", tags: "meditation,health" },
+        // Should match exactly
+        MockWin { date: "2025-12-05", text: "Played basketball with friends.", tags: "basketball,exercise,sport,friend" },
+        // Should add extra tag (system might add 'positive')
+        MockWin { date: "2025-12-06", text: "Cooked a healthy meal!", tags: "cook,health,food" },
+        // Should have missing tag (system might miss 'food')
+        MockWin { date: "2025-12-07", text: "Ate fruit for breakfast.", tags: "fruit,breakfast,health" },
+        // Should add new tag (system might add 'rest')
+        MockWin { date: "2025-12-08", text: "Took a nap in the afternoon.", tags: "nap,health" },
+        // Should match exactly
+        MockWin { date: "2025-12-09", text: "Went to the gym.", tags: "gym,health,exercise" },
+        // Should add extra tag (system might add 'positive')
+        MockWin { date: "2025-12-10", text: "Did a group workout session.", tags: "group,workout,exercise,health" },
+        // --- End Comparison Examples ---
+        MockWin { date: "2025-12-01", text: "Absolutely crushed my workout today! 💪", tags: "workout,health,exercise,positive" },
+        MockWin { date: "2025-12-02", text: "Had an amazing dinner with Alice at Gold's Gym.", tags: "" },
+        MockWin { date: "2025-12-03", text: "Felt really down after failing the test...", tags: "test,school,negative" },
+        MockWin { date: "2025-12-04", text: "Terrible day at work.", tags: "" },
+        MockWin { date: "2025-12-05", text: "Met Bob at Starbucks.", tags: "bob,starbucks,positive" },
+        MockWin { date: "2025-12-06", text: "Visited Central Park with Sarah!", tags: "" },
+        MockWin { date: "2025-12-07", text: "Had a great family dinner!", tags: "family,relationships,positive" },
+        MockWin { date: "2025-12-08", text: "Completed a tough exam.", tags: "" },
+        MockWin { date: "2025-12-09", text: "Cleaned the house.", tags: "clean,life,neutral" },
+        MockWin { date: "2025-12-10", text: "Sent important emails.", tags: "" },
         // Health-focused and varied
-        MockWin { date: "2025-12-11", text: "Ran 5km in the park", tags: "run,health,exercise" },
-        MockWin { date: "2025-12-12", text: "Did a yoga session", tags: "yoga,health,exercise" },
-        MockWin { date: "2025-12-13", text: "Cooked a healthy meal", tags: "cook,health,life" },
-        MockWin { date: "2025-12-14", text: "Meditated for 20 minutes", tags: "meditation,health,mental" },
-        MockWin { date: "2025-12-15", text: "Slept 8 hours", tags: "sleep,health" },
-        MockWin { date: "2025-12-16", text: "Went swimming", tags: "swim,health,exercise" },
-        MockWin { date: "2025-12-17", text: "Took vitamins", tags: "vitamins,health" },
-        MockWin { date: "2025-12-18", text: "Had a checkup at the doctor", tags: "doctor,health" },
-        MockWin { date: "2025-12-19", text: "Did 30 pushups", tags: "pushups,health,exercise" },
-        MockWin { date: "2025-12-20", text: "Walked 10,000 steps", tags: "walk,health,exercise" },
-        MockWin { date: "2025-12-21", text: "Drank 2L of water", tags: "water,health" },
-        MockWin { date: "2025-12-22", text: "Ate a salad for lunch", tags: "salad,health,food" },
-        MockWin { date: "2025-12-23", text: "Did a HIIT workout", tags: "hiit,health,exercise" },
-        MockWin { date: "2025-12-24", text: "Stretched after waking up", tags: "stretch,health,exercise" },
-        MockWin { date: "2025-12-25", text: "Took a rest day", tags: "rest,health" },
-        MockWin { date: "2025-12-26", text: "Went hiking", tags: "hike,health,exercise,nature" },
-        MockWin { date: "2025-12-27", text: "Played basketball", tags: "basketball,health,exercise,sport" },
-        MockWin { date: "2025-12-28", text: "Did a cycling session", tags: "cycling,health,exercise" },
-        MockWin { date: "2025-12-29", text: "Tried a new healthy recipe", tags: "cook,health,food" },
-        MockWin { date: "2025-12-30", text: "Had a relaxing bath", tags: "bath,health,mental" },
-        MockWin { date: "2025-12-31", text: "Practiced deep breathing", tags: "breathing,health,mental" },
+        MockWin { date: "2025-12-11", text: "Ran 5km in the park!", tags: "run,health,exercise,positive" },
+        MockWin { date: "2025-12-12", text: "Did a yoga session.", tags: "" },
+        MockWin { date: "2025-12-13", text: "Cooked a healthy meal.", tags: "cook,health,life,positive" },
+        MockWin { date: "2025-12-14", text: "Meditated for 20 minutes.", tags: "" },
+        MockWin { date: "2025-12-15", text: "Slept 8 hours!", tags: "sleep,health,positive" },
+        MockWin { date: "2025-12-16", text: "Went swimming.", tags: "" },
+        MockWin { date: "2025-12-17", text: "Took vitamins.", tags: "vitamins,health,neutral" },
+        MockWin { date: "2025-12-18", text: "Had a checkup at the doctor.", tags: "" },
+        MockWin { date: "2025-12-19", text: "Did 30 pushups!", tags: "pushups,health,exercise,positive" },
+        MockWin { date: "2025-12-20", text: "Walked 10,000 steps.", tags: "" },
+        MockWin { date: "2025-12-21", text: "Drank 2L of water.", tags: "water,health,neutral" },
+        MockWin { date: "2025-12-22", text: "Ate a salad for lunch.", tags: "" },
+        MockWin { date: "2025-12-23", text: "Did a HIIT workout.", tags: "hiit,health,exercise,neutral" },
+        MockWin { date: "2025-12-24", text: "Stretched after waking up.", tags: "" },
+        MockWin { date: "2025-12-25", text: "Took a rest day.", tags: "rest,health,neutral" },
+        MockWin { date: "2025-12-26", text: "Went hiking.", tags: "" },
+        MockWin { date: "2025-12-27", text: "Played basketball.", tags: "basketball,health,exercise,sport,neutral" },
+        MockWin { date: "2025-12-28", text: "Did a cycling session.", tags: "" },
+        MockWin { date: "2025-12-29", text: "Tried a new healthy recipe!", tags: "cook,health,food,positive" },
+        MockWin { date: "2025-12-30", text: "Had a relaxing bath.", tags: "" },
+        MockWin { date: "2025-12-31", text: "Practiced deep breathing.", tags: "breathing,health,mental,neutral" },
         // Add more varied and health-related wins
     ];
     // Add more to reach 100

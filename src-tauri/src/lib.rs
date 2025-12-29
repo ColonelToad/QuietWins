@@ -1,3 +1,7 @@
+#[tauri::command]
+fn suggest_tags_for_text(text: String) -> Vec<String> {
+    nlp::suggest_tags(&text)
+}
 use std::fs;
 use std::io::{Read, Write};
 use chrono::{Local, NaiveTime, Timelike};
@@ -78,6 +82,8 @@ pub fn run() {
             #[cfg(debug_assertions)]
             {
                 let _ = db::insert_mock_data(app.handle());
+                // Run NLP on mock data and print results
+                crate::nlp::run_nlp_on_mock_data();
             }
             
             let log_win = MenuItemBuilder::new("Log Win").id("log_win").build(app)?;
@@ -155,7 +161,7 @@ pub fn run() {
             
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![add_win, get_wins, get_tag_graph, set_notif_time, get_notif_time])
+        .invoke_handler(tauri::generate_handler![add_win, get_wins, get_tag_graph, set_notif_time, get_notif_time, suggest_tags_for_text])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

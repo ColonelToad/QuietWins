@@ -24,3 +24,11 @@ vite.config.ts.timestamp-*
 /.svelte-kit
 /build
 /docs
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
