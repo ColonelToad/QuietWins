@@ -6,12 +6,22 @@
 
   let networkContainer: HTMLDivElement;
   let svgEl: SVGSVGElement;
+
   let tagGraph: { nodes: string[]; edges: [string, string][] } = { nodes: [], edges: [] };
   let selectedTag: string | null = null;
   let wins: Win[] = [];
   let filteredWins: Win[] = [];
-  // D3 doesn't need DataSet, will use arrays
   let errorMsg: string | null = null;
+
+  // Time filter state
+  let timeFilter = '30'; // '7', '30', 'all', 'custom'
+  let customStart = '';
+  let customEnd = '';
+
+  // Sentiment and NER filter state
+  let sentimentFilter = 'all'; // 'all', 'positive', 'neutral', 'negative'
+  let nerFilter = 'all'; // 'all', 'PERSON', 'ORG', 'GPE', etc.
+  const nerOptions = ['all', 'PERSON', 'ORG', 'GPE', 'EVENT', 'WORK_OF_ART', 'PRODUCT'];
 
   function exportAsImage(): void {
     if (!svgEl) return;
@@ -48,24 +58,72 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+
   onMount(async () => {
-    try {
-      tagGraph = await getTagGraph();
-    } catch (err) {
-      console.error('GraphView getTagGraph error:', err);
-      errorMsg = `Failed to load tag graph: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
-      return;
-    }
     try {
       wins = await getWins();
     } catch (err) {
-      console.error('GraphView getWins error:', err);
       errorMsg = `Failed to load wins: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
       return;
     }
-    // D3 rendering
-    renderD3Graph();
+    updateGraph();
   });
+
+  function getFilteredWins() {
+    let filtered = wins;
+    // Time filter
+    if (timeFilter !== 'all') {
+      let start: Date, end: Date;
+      if (timeFilter === 'custom' && customStart && customEnd) {
+        start = new Date(customStart);
+        end = new Date(customEnd);
+      } else {
+        const days = parseInt(timeFilter);
+        end = new Date();
+        start = new Date();
+        start.setDate(end.getDate() - days + 1);
+      }
+      filtered = filtered.filter(win => {
+        if (!win.date) return false;
+        const d = new Date(win.date);
+        return d >= start && d <= end;
+      });
+    }
+    // Sentiment filter (assumes sentiment tag is present in win.tags)
+    if (sentimentFilter !== 'all') {
+      filtered = filtered.filter(win => win.tags && win.tags.split(/[\[\],"]+/).map(t => t.trim()).includes(sentimentFilter));
+    }
+    // NER filter (assumes NER label is present in win.tags)
+    if (nerFilter !== 'all') {
+      filtered = filtered.filter(win => win.tags && win.tags.split(/[\[\],"]+/).map(t => t.trim()).includes(nerFilter.toLowerCase()));
+    }
+    return filtered;
+  }
+
+  function updateGraph() {
+    filteredWins = getFilteredWins();
+    // Build tag graph from filtered wins
+    const tagSets: string[][] = filteredWins.map(win => (win.tags || '').split(/[\[\],"]+/).map(t => t.trim()).filter(Boolean));
+    const allTags = new Set<string>();
+    tagSets.forEach(tags => tags.forEach(t => allTags.add(t)));
+    const nodes = Array.from(allTags);
+    const edgeSet = new Set<string>();
+    tagSets.forEach(tags => {
+      for (let i = 0; i < tags.length; i++) {
+        for (let j = i + 1; j < tags.length; j++) {
+          const a = tags[i], b = tags[j];
+          const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+          edgeSet.add(key);
+        }
+      }
+    });
+    const edges: [string, string][] = Array.from(edgeSet).map(e => {
+      const [a, b] = e.split('|');
+      return [a, b];
+    });
+    tagGraph = { nodes, edges };
+    renderD3Graph();
+  }
 
   function renderD3Graph() {
     if (!networkContainer) return;
@@ -173,8 +231,38 @@
 
 <main>
   <div class="export-bar">
-    <button on:click={exportAsImage}>Export as Image</button>
-    <button on:click={exportAsJSON}>Export as JSON</button>
+    <button aria-label="Export graph as image" on:click={exportAsImage}>Export as Image</button>
+    <button aria-label="Export graph as JSON" on:click={exportAsJSON}>Export as JSON</button>
+    <span style="margin-left:2em">
+      <label for="graph-time-filter">Show</label>
+      <select id="graph-time-filter" aria-label="Graph time range" bind:value={timeFilter} on:change={updateGraph}>
+        <option value="7">last 7 days</option>
+        <option value="30">last 30 days</option>
+        <option value="all">all time</option>
+        <option value="custom">custom range</option>
+      </select>
+      {#if timeFilter === 'custom'}
+        <input type="date" bind:value={customStart} on:change={updateGraph} />
+        <input type="date" bind:value={customEnd} on:change={updateGraph} />
+      {/if}
+    </span>
+    <span style="margin-left:2em">
+      <label for="graph-sentiment">Sentiment</label>
+      <select id="graph-sentiment" aria-label="Filter by sentiment" bind:value={sentimentFilter} on:change={updateGraph}>
+        <option value="all">all</option>
+        <option value="positive">positive</option>
+        <option value="neutral">neutral</option>
+        <option value="negative">negative</option>
+      </select>
+    </span>
+    <span style="margin-left:2em">
+      <label for="graph-ner">NER</label>
+      <select id="graph-ner" aria-label="Filter by entity type" bind:value={nerFilter} on:change={updateGraph}>
+        {#each nerOptions as opt}
+          <option value={opt}>{opt}</option>
+        {/each}
+      </select>
+    </span>
     {#if selectedTag}
       <button on:click={clearFilter}>Clear Tag Filter</button>
     {/if}

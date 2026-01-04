@@ -17,3 +17,11 @@ async def analyze_batch(request: Request):
         entities = [{"text": ent.text, "label": ent.label_} for ent in doc.ents]
         results.append({"sentiment": sentiment, "entities": entities})
     return {"results": results}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("nlp_service:app", host="127.0.0.1", port=8000, reload=False)

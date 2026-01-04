@@ -1,3 +1,85 @@
+#[derive(Serialize, Clone)]
+pub struct WinWithChain {
+    pub id: i64,
+    pub date: String,
+    pub text: String,
+    pub tags: String,
+    pub created_at: i64,
+    pub chain_id: usize,
+}
+
+/// Simple win chain detection: group wins by shared entity/keyword and sequence
+pub fn get_wins_with_chains(app_handle: &tauri::AppHandle) -> Result<Vec<WinWithChain>> {
+    let wins = get_wins(app_handle)?;
+    // Extract chain keys (e.g., main entity or project keyword)
+    let mut chains: Vec<Vec<Win>> = Vec::new();
+    let mut assigned = vec![false; wins.len()];
+    for (i, win) in wins.iter().enumerate() {
+        if assigned[i] { continue; }
+        let mut chain: Vec<Win> = vec![win.clone()];
+        assigned[i] = true;
+        let key = extract_chain_key(&win.text, &win.tags);
+        if key.is_empty() { continue; }
+        // Group other wins with same key (and within 30 days)
+        for (j, other) in wins.iter().enumerate() {
+            if i == j || assigned[j] { continue; }
+            let other_key = extract_chain_key(&other.text, &other.tags);
+            if !other_key.is_empty() && other_key == key {
+                // Optionally, check date proximity
+                chain.push(other.clone());
+                assigned[j] = true;
+            }
+        }
+        chains.push(chain);
+    }
+    // Assign chain IDs
+    let mut win_with_chain = Vec::new();
+    for (chain_id, chain) in chains.iter().enumerate() {
+        for win in chain {
+            win_with_chain.push(WinWithChain {
+                id: win.id,
+                date: win.date.clone(),
+                text: win.text.clone(),
+                tags: win.tags.clone(),
+                created_at: win.created_at,
+                chain_id,
+            });
+        }
+    }
+    // Add unchained wins (chain_id = usize::MAX)
+    for (i, win) in wins.iter().enumerate() {
+        if !assigned[i] {
+            win_with_chain.push(WinWithChain {
+                id: win.id,
+                date: win.date.clone(),
+                text: win.text.clone(),
+                tags: win.tags.clone(),
+                created_at: win.created_at,
+                chain_id: usize::MAX,
+            });
+        }
+    }
+    Ok(win_with_chain)
+}
+
+/// Extract a chain key from text/tags (e.g., main entity, project, or noun)
+fn extract_chain_key(text: &str, tags: &str) -> String {
+    // Simple: use first WORK_OF_ART/PRODUCT/ORG tag, or longest word > 5 chars
+    let tag_candidates: Vec<&str> = tags.split(',').map(|t| t.trim()).collect();
+    for t in &tag_candidates {
+        if t == &"work_of_art" || t == &"product" || t == &"org" {
+            return t.to_string();
+        }
+    }
+    // Fallback: use longest word in text
+    let mut longest = "";
+    for word in text.split_whitespace() {
+        if word.len() > longest.len() && word.len() > 5 {
+            longest = word;
+        }
+    }
+    longest.to_string()
+}
 use super::mock_data;
 use serde::Serialize;
 use rusqlite::{Connection, Result};
@@ -102,6 +184,17 @@ pub fn init_db(app_handle: &tauri::AppHandle) -> Result<Connection> {
         )",
         [],
     )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS deleted_wins (
+            id INTEGER PRIMARY KEY,
+            date TEXT NOT NULL,
+            text TEXT NOT NULL,
+            tags TEXT,
+            created_at INTEGER NOT NULL,
+            deleted_at INTEGER NOT NULL
+        )",
+        [],
+    )?;
     Ok(conn)
 }
 
@@ -131,6 +224,91 @@ pub fn add_win(app_handle: &tauri::AppHandle, date: &str, text: &str, tags: &str
             Err(e)
         }
     }
+}
+
+pub fn update_win(app_handle: &tauri::AppHandle, id: i64, date: &str, text: &str, tags: &str) -> Result<()> {
+    let db_path = get_db_path(app_handle);
+    println!("[update_win] Using DB path: {}", db_path.display());
+    let conn = init_db(app_handle)?;
+    let res = conn.execute(
+        "UPDATE wins SET date = ?1, text = ?2, tags = ?3 WHERE id = ?4",
+        (date, text, tags, id),
+    );
+    match res {
+        Ok(_) => {
+            println!("[update_win] Update success for id {}", id);
+            Ok(())
+        },
+        Err(e) => {
+            println!("[update_win] Update error: {}", e);
+            Err(e)
+        }
+    }
+}
+
+pub fn delete_win(app_handle: &tauri::AppHandle, id: i64) -> Result<()> {
+    let db_path = get_db_path(app_handle);
+    println!("[delete_win] Soft delete for id {}", id);
+    let conn = init_db(app_handle)?;
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    // Move to deleted_wins instead of hard delete
+    let mut stmt = conn.prepare("SELECT date, text, tags, created_at FROM wins WHERE id = ?1")?;
+    let win = stmt.query_row([id], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?))
+    })?;
+    let (date, text, tags, created_at) = win;
+    conn.execute(
+        "INSERT INTO deleted_wins (id, date, text, tags, created_at, deleted_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        (id, date, text, tags, created_at, now),
+    )?;
+    conn.execute("DELETE FROM wins WHERE id = ?1", [id])?;
+    Ok(())
+}
+
+pub fn restore_win(app_handle: &tauri::AppHandle, id: i64) -> Result<()> {
+    let db_path = get_db_path(app_handle);
+    println!("[restore_win] Restoring win id {}", id);
+    let conn = init_db(app_handle)?;
+    // Move back from deleted_wins to wins
+    let mut stmt = conn.prepare("SELECT date, text, tags, created_at FROM deleted_wins WHERE id = ?1")?;
+    let win = stmt.query_row([id], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?))
+    })?;
+    let (date, text, tags, created_at) = win;
+    conn.execute(
+        "INSERT OR REPLACE INTO wins (id, date, text, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        (id, date, text, tags, created_at),
+    )?;
+    conn.execute("DELETE FROM deleted_wins WHERE id = ?1", [id])?;
+    Ok(())
+}
+
+pub fn get_deleted_wins(app_handle: &tauri::AppHandle) -> Result<Vec<Win>> {
+    let conn = init_db(app_handle)?;
+    let mut stmt = conn.prepare("SELECT id, date, text, tags, created_at FROM deleted_wins ORDER BY id DESC")?;
+    let wins = stmt.query_map([], |row| {
+        Ok(Win {
+            id: row.get(0)?,
+            date: row.get(1)?,
+            text: row.get(2)?,
+            tags: row.get(3)?,
+            created_at: row.get(4)?,
+        })
+    })?;
+    let mut result = Vec::new();
+    for win in wins {
+        result.push(win?);
+    }
+    Ok(result)
+}
+
+pub fn cleanup_old_deletions(app_handle: &tauri::AppHandle, retention_hours: i64) -> Result<()> {
+    let conn = init_db(app_handle)?;
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    let cutoff = now - (retention_hours * 3600);
+    let res = conn.execute("DELETE FROM deleted_wins WHERE deleted_at < ?1", [cutoff])?;
+    println!("[cleanup_old_deletions] Deleted {} old entries", res);
+    Ok(())
 }
 
 fn infer_tags(text: &str) -> String {
@@ -180,7 +358,7 @@ fn infer_tags(text: &str) -> String {
     tags.into_iter().collect::<Vec<_>>().join(", ")
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Win {
     pub id: i64,
     pub date: String,

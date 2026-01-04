@@ -29,4 +29,13 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  // Externalize Tauri API packages for SSR build
+  ssr: {
+    noExternal: [],
+  },
+  build: {
+    rollupOptions: {
+      external: [/^@tauri-apps\//],
+    },
+  },
 }));

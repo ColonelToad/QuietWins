@@ -1,11 +1,10 @@
 // nlp.rs - NLP-based tag suggestion for QuietWins
-// This is a placeholder for future NLP logic. For now, it uses simple keyword matching.
-// You can later replace this with a real NLP library (e.g., rust-bert, nlprule, etc.)
+// Now integrates rule-based, NER, and sentiment tags.
 
 pub fn suggest_tags(text: &str) -> Vec<String> {
+    // Synchronous fallback for compatibility (rule-based only)
     let mut tags = Vec::new();
     let lower = text.to_lowercase();
-    // Example: simple keyword-based fallback
     if lower.contains("essay") || lower.contains("draft") || lower.contains("write") {
         tags.push("writing".to_string());
     }
@@ -15,7 +14,54 @@ pub fn suggest_tags(text: &str) -> Vec<String> {
     if lower.contains("family") {
         tags.push("family bonding".to_string());
     }
-    // ...add more rules or call NLP library here...
+    tags
+}
+
+// Async: combines rule-based, NER, and sentiment tags
+pub async fn suggest_tags_async(text: &str) -> Vec<String> {
+    let mut tags = suggest_tags(text); // Start with rule-based
+
+    // Call Python NLP service for NER and sentiment
+    let client = Client::new();
+    let resp = client
+        .post("http://127.0.0.1:8000/analyze_batch")
+        .json(&serde_json::json!({"texts": [text]}))
+        .send()
+        .await;
+    if let Ok(resp) = resp {
+        if let Ok(json) = resp.json::<serde_json::Value>().await {
+            if let Some(results) = json["results"].as_array() {
+                if let Some(result) = results.get(0) {
+                    // Sentiment
+                    if let Some(sentiment) = result["sentiment"]["compound"].as_f64() {
+                        if sentiment > 0.3 {
+                            tags.push("positive".to_string());
+                        } else if sentiment < -0.3 {
+                            tags.push("negative".to_string());
+                        } else {
+                            tags.push("neutral".to_string());
+                        }
+                    }
+                    // Entities
+                    if let Some(entities) = result["entities"].as_array() {
+                        for ent in entities {
+                            if let (Some(text), Some(label)) = (ent["text"].as_str(), ent["label"].as_str()) {
+                                // Use label as tag, or combine
+                                tags.push(label.to_lowercase());
+                                // Optionally, add entity text as tag for PERSON/ORG/GPE
+                                if ["PERSON", "ORG", "GPE"].contains(&label) {
+                                    tags.push(text.to_lowercase());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Remove duplicates
+    tags.sort();
+    tags.dedup();
     tags
 }
 

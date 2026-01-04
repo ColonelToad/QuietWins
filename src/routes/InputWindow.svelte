@@ -16,6 +16,7 @@
   let allKnownTags: string[] = [];
   let showBanner = false;
   let editorRef;
+  let modalRef: HTMLDivElement | null = null;
 
   // Extract all lines/bullets from editor
   function getEditorLines(): { index: number, text: string }[] {
@@ -132,37 +133,62 @@
     }
   });
 
+  // Popup state for tag review
+  let showTagReview = false;
+  let reviewLines = [];
+  let reviewTagsByLine = {};
+  let reviewError = '';
+
+  $: if (showTagReview && modalRef) {
+    modalRef.focus();
+  }
+
+  function handleModalKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      cancelTagReview();
+    }
+  }
+
   async function save() {
     const date = new Date().toISOString().slice(0, 10);
     const lines = getEditorLines();
-    
+    // Prepare review state
+    reviewLines = lines.map(l => ({ ...l }));
+    reviewTagsByLine = { ...tagsByLine };
+    showTagReview = true;
+    reviewError = '';
+  }
+
+  async function confirmTagReview() {
+    const date = new Date().toISOString().slice(0, 10);
     try {
-      // Save each line as a separate win with its own tags
-      for (const line of lines) {
-        const lineTags = tagsByLine[line.index] || [];
+      for (const line of reviewLines) {
+        const lineTags = reviewTagsByLine[line.index] || [];
         const tagsString = lineTags.map(normalizeTag).join(',');
-        
         await addWin(date, line.text, tagsString);
         saveTagPrefs(line.text, lineTags);
       }
-      
-      dispatch('save', { count: lines.length });
-      
+      dispatch('save', { count: reviewLines.length });
       // Reset editor
       if (editorRef) {
         editorRef.innerHTML = '<div><span class="bullet">•</span><span class="text-content"> </span></div>';
         placeCaretAtEnd();
       }
-      
       tagsByLine = {};
       currentLineIndex = 0;
       tagInput = '';
       tagError = '';
       showBanner = true;
       setTimeout(() => showBanner = false, 2000);
+      showTagReview = false;
     } catch (e) {
-      alert('Failed to save wins: ' + e);
+      reviewError = 'Failed to save wins: ' + e;
     }
+  }
+
+  function cancelTagReview() {
+    showTagReview = false;
   }
 
   function cancel() {
@@ -234,7 +260,7 @@
 </script>
 
 <div class="input-window">
-  <div class="header-hint">
+  <div class="header-hint" role="note" aria-label="Hint: Use Shift plus Enter for multiple wins">
     <span class="hint-text">💡 Use <kbd>Shift+Enter</kbd> for multiple wins</span>
   </div>
   
@@ -275,16 +301,57 @@
   
   <div class="footer">
     <div class="footer-buttons">
-      <button class="settings-btn-text" on:click={openSettings} title="Settings">
+      <button class="settings-btn-text" on:click={openSettings} title="Settings" aria-label="Open settings">
         <Settings size={16} />
         <span>Settings</span>
       </button>
-      <button class="help-btn-text" on:click={openHelp} title="Help / Onboarding">
+      <button class="help-btn-text" on:click={openHelp} title="Help / Onboarding" aria-label="Open help and onboarding">
         <HelpCircle size={16} />
         <span>Help</span>
       </button>
     </div>
   </div>
+
+  {#if showTagReview}
+    <div class="modal-backdrop" aria-hidden="false">
+      <div
+        class="modal tag-review-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tag-review-title"
+        aria-describedby="tag-review-desc"
+        tabindex="-1"
+        bind:this={modalRef}
+        on:keydown={handleModalKeydown}
+      >
+        <h3 id="tag-review-title">Review Tags for Your Wins</h3>
+        <p id="tag-review-desc">Edit tags for each win before saving. Separate tags with commas.</p>
+        <ul class="tag-review-list">
+          {#each reviewLines as line}
+            <li>
+              <div class="review-text">{line.text}</div>
+              <input
+                class="review-tag-input"
+                type="text"
+                bind:value={reviewTagsByLine[line.index]}
+                on:input={(e) => {
+                  reviewTagsByLine[line.index] = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                }}
+                placeholder="Edit tags..."
+              />
+            </li>
+          {/each}
+        </ul>
+        {#if reviewError}
+          <div class="tag-error">{reviewError}</div>
+        {/if}
+        <div class="modal-actions">
+          <button on:click={confirmTagReview}>Save All</button>
+          <button on:click={cancelTagReview} class="cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -440,6 +507,16 @@
     gap: 0.4rem;
   }
 
+  .settings-btn-text:focus-visible,
+  .help-btn-text:focus-visible,
+  .modal-actions button:focus-visible,
+  .tag-input:focus-visible,
+  .review-tag-input:focus-visible,
+  .logwin-input:focus-visible {
+    outline: 2px solid #a95e45;
+    outline-offset: 2px;
+  }
+
   .settings-btn-text:hover,
   .help-btn-text:hover {
     background: color-mix(in srgb, var(--accent, #CC785C) 80%, #fff 20%);
@@ -449,5 +526,68 @@
   @keyframes fadein {
     from { opacity: 0; }
     to { opacity: 1; }
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+  
+  .modal.tag-review-modal {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    padding: 2rem 2.5rem;
+    min-width: 340px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  
+  .tag-review-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.2rem 0;
+  }
+  
+  .tag-review-list li {
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .review-text {
+    font-size: 1.08em;
+    margin-bottom: 0.3em;
+    color: #222;
+  }
+  
+  .review-tag-input {
+    width: 100%;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    padding: 0.5rem 0.7rem;
+    font-family: inherit;
+    margin-bottom: 0.2em;
+  }
+  
+  .modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    justify-content: flex-end;
+  }
+  
+  .modal-actions .cancel {
+    background: #eee;
+    color: #333;
+    border: 1px solid #bbb;
   }
 </style>

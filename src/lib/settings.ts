@@ -1,10 +1,16 @@
 import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
 
 export interface Settings {
   theme: string;
   icon: string;
   notifTime: string;
   notifSound: boolean;
+  notifEnabled: boolean;
+  weeklyRecap: boolean;
+  notifFrequency: 'daily' | 'off';
+  dailyMessage: string;
+  weeklyMessage: string;
   shortcut: string;
   font: string;
   autoTag: boolean;
@@ -17,6 +23,11 @@ const defaultSettings: Settings = {
   icon: 'warm',
   notifTime: '20:00',
   notifSound: true,
+  notifEnabled: true,
+  weeklyRecap: true,
+  notifFrequency: 'daily',
+  dailyMessage: "Don't forget to log your quiet win today!",
+  weeklyMessage: '',
   shortcut: 'Cmd+Alt+Shift+W',
   font: 'Garamond',
   autoTag: true,
@@ -49,16 +60,29 @@ async function loadSettings(): Promise<Settings> {
   return { ...defaultSettings, notifTime };
 }
 
-// Use an async store initializer
-const settingsStore = writable<Settings>(defaultSettings);
-loadSettings().then(settingsStore.set);
 
-settingsStore.subscribe((val) => {
-  localStorage.setItem('qw-settings', JSON.stringify(val));
-  // Sync notifTime to backend
-  import('@tauri-apps/api/core').then(({ invoke }) => {
-    invoke('set_notif_time', { notif_time: val.notifTime });
+const settingsStore = writable<Settings>(defaultSettings);
+
+if (browser) {
+  loadSettings().then(settingsStore.set);
+
+  settingsStore.subscribe((val) => {
+    localStorage.setItem('qw-settings', JSON.stringify(val));
+    syncSettingsToBackend(val);
   });
-});
+}
+
+async function syncSettingsToBackend(val: Settings) {
+  if (typeof window === 'undefined') return;
+  // Only run in browser/tauri context
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('set_notif_time', { notif_time: val.notifTime });
+  } catch {}
+  try {
+    const { writeTextFile, BaseDirectory } = await import('@tauri-apps/api/fs');
+    await writeTextFile('settings.json', JSON.stringify(val), { dir: BaseDirectory.AppData });
+  } catch {}
+}
 
 export const settings = settingsStore;

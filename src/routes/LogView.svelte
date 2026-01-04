@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getWins, addWin, type Win } from '../lib/tauri';
+  import { getWins, addWin, getWinsWithChains, updateWin as updateWinApi, deleteWin as deleteWinApi, getDeletedWins, restoreWin, type WinWithChain } from '../lib/tauri';
   import { settings } from '../lib/settings';
   import Settings from 'lucide-svelte/icons/settings';
   import { goto } from '$app/navigation';
-  let wins: Win[] = [];
+  let wins: WinWithChain[] = [];
+  let deletedWins: any[] = [];
   let newText = '';
   let newTags = '';
   let adding = false;
@@ -13,6 +14,16 @@
   let passwordInput = '';
   let passwordError = '';
   let unlocked = false;
+  let showTrash = false;
+
+  // Undo/redo stacks for edits
+  type WinSnapshot = { id: number; date: string; text: string; tags: string };
+  type EditAction = { before: WinSnapshot | null; after: WinSnapshot | null };
+  let undoStack: EditAction[] = [];
+  let redoStack: EditAction[] = [];
+  let editingId: number | null = null;
+  let editText = '';
+  let editTags = '';
 
   onMount(async () => {
     if ($settings.privacyLock) {
@@ -26,10 +37,37 @@
 
   async function loadWins() {
     try {
-      wins = await getWins();
+      wins = await getWinsWithChains();
     } catch (err) {
       errorMsg = `Failed to load wins: ${typeof err === 'object' && err !== null && 'message' in err ? (err as { message?: string }).message ?? String(err) : String(err)}`;
       console.error('LogView getWins error:', err);
+    }
+  }
+
+  async function loadDeletedWins() {
+    try {
+      deletedWins = await getDeletedWins();
+    } catch (err) {
+      errorMsg = `Failed to load deleted wins: ${String(err)}`;
+      console.error('LogView getDeletedWins error:', err);
+    }
+  }
+
+  async function toggleTrash() {
+    showTrash = !showTrash;
+    if (showTrash) {
+      await loadDeletedWins();
+    }
+  }
+
+  async function restoreDeletedWin(win: any) {
+    try {
+      await restoreWin(win.id);
+      await loadDeletedWins();
+      await loadWins();
+      errorMsg = null;
+    } catch (err) {
+      errorMsg = `Failed to restore: ${String(err)}`;
     }
   }
 
@@ -47,6 +85,78 @@
       console.error('handleAddWin error:', err);
     } finally {
       adding = false;
+    }
+  }
+
+  function beginEdit(win: WinWithChain) {
+    editingId = win.id;
+    editText = win.text;
+    editTags = win.tags;
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    editText = '';
+    editTags = '';
+  }
+
+  async function saveEdit(win: WinWithChain) {
+    if (editingId !== win.id) return;
+    const before: WinSnapshot = { id: win.id, date: win.date, text: win.text, tags: win.tags };
+    const after: WinSnapshot = { id: win.id, date: win.date, text: editText, tags: editTags };
+    try {
+      await updateWinApi({ id: win.id, date: win.date, text: editText, tags: editTags });
+      undoStack.push({ before, after });
+      redoStack = [];
+      editingId = null;
+      await loadWins();
+    } catch (err) {
+      errorMsg = `Failed to save edit: ${String(err)}`;
+    }
+  }
+
+  async function undoLast() {
+    const action = undoStack.pop();
+    if (!action) return;
+    try {
+      if (action.before && action.after) {
+        // edit revert
+        await updateWinApi({ id: action.before.id, date: action.before.date, text: action.before.text, tags: action.before.tags });
+      } else if (action.before && !action.after) {
+        // deletion undo: reinsert by add_win then update id? Not feasible with AUTOINCREMENT; instead, skip for now.
+      } else if (!action.before && action.after) {
+        // creation undo (not used here)
+      }
+      redoStack.push(action);
+      await loadWins();
+    } catch (err) {
+      errorMsg = `Failed to undo: ${String(err)}`;
+    }
+  }
+
+  async function redoLast() {
+    const action = redoStack.pop();
+    if (!action) return;
+    try {
+      if (action.before && action.after) {
+        await updateWinApi({ id: action.after.id, date: action.after.date, text: action.after.text, tags: action.after.tags });
+      }
+      undoStack.push(action);
+      await loadWins();
+    } catch (err) {
+      errorMsg = `Failed to redo: ${String(err)}`;
+    }
+  }
+
+  async function deleteWinEntry(win: WinWithChain) {
+    const before: WinSnapshot = { id: win.id, date: win.date, text: win.text, tags: win.tags };
+    try {
+      await deleteWinApi(win.id);
+      undoStack.push({ before, after: null });
+      redoStack = [];
+      await loadWins();
+    } catch (err) {
+      errorMsg = `Failed to delete: ${String(err)}`;
     }
   }
 
@@ -89,18 +199,131 @@
       <button class="help-btn" on:click={() => goto('/onboarding')} title="Help / Onboarding" style="background:none; border:none; cursor:pointer; padding:0.2rem; border-radius:50%;">
         <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><circle cx="14" cy="14" r="12" stroke="#888" stroke-width="2" fill="white"/><text x="14" y="19" text-anchor="middle" font-size="18" fill="#888" font-family="Arial, sans-serif">?</text></svg>
       </button>
+      <button class="undo-btn" on:click={undoLast} disabled={undoStack.length === 0} title="Undo last edit">Undo</button>
+      <button class="redo-btn" on:click={redoLast} disabled={redoStack.length === 0} title="Redo last edit">Redo</button>
+      <button class="trash-btn" on:click={toggleTrash} title="View deleted wins">🗑️ Trash</button>
     </div>
     </div>
     {#if errorMsg}
       <div class="error">{errorMsg}</div>
     {/if}
-    {#each wins as win (win.id)}
-      <section>
-        <div>{win.date}</div>
-        <div>{win.text}</div>
-        <div class="log-tags"><em>{win.tags}</em></div>
-      </section>
+    {#if showTrash}
+      <div class="trash-section">
+        <h2>Trash (48-hour retention)</h2>
+        {#if deletedWins.length === 0}
+          <p class="empty-trash">No deleted wins. Your trash is clean!</p>
+        {:else}
+          <div class="deleted-wins-list">
+            {#each deletedWins as win (win.id)}
+              <div class="deleted-win-card">
+                <div class="deleted-win-header">
+                  <div class="deleted-win-date">{win.date}</div>
+                  <button class="restore-btn" on:click={() => restoreDeletedWin(win)} title="Restore this win">↻ Restore</button>
+                </div>
+                <div class="deleted-win-text">{win.text}</div>
+                <div class="deleted-win-tags"><em>{win.tags}</em></div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {:else}
+      {#if errorMsg}
+      <div class="error">{errorMsg}</div>
+    {/if}
+    {#each groupByChain(wins) as { chain_id, chainWins }, i}
+      <div class="chain-section" style="background: {chainColor(chain_id)};">
+        {#if chain_id !== maxChainId}
+          <div class="chain-label">Chain #{chain_id + 1}</div>
+        {/if}
+        {#each chainWins as win (win.id)}
+          <section>
+            <div class="win-row">
+              <div class="win-date">{win.date}</div>
+              <div class="win-actions">
+                {#if editingId === win.id}
+                  <button on:click={() => saveEdit(win)}>Save</button>
+                  <button class="cancel" on:click={cancelEdit}>Cancel</button>
+                {:else}
+                  <button on:click={() => beginEdit(win)}>Edit</button>
+                  <button class="cancel" on:click={() => deleteWinEntry(win)}>Delete</button>
+                {/if}
+              </div>
+            </div>
+            {#if editingId === win.id}
+              <textarea class="edit-text" bind:value={editText} rows="3"></textarea>
+              <input class="edit-tags" type="text" bind:value={editTags} placeholder="Tags" />
+            {:else}
+              <div>{win.text}</div>
+              <div class="log-tags"><em>{win.tags}</em></div>
+            {/if}
+          </section>
+        {/each}
+      </div>
     {/each}
+    <script lang="ts">
+    // ...existing code...
+
+    // Group wins by chain_id
+    function groupByChain(wins: WinWithChain[]) {
+      const groups: Record<number, WinWithChain[]> = {};
+      for (const win of wins) {
+        if (!groups[win.chain_id]) groups[win.chain_id] = [];
+        groups[win.chain_id].push(win);
+      }
+      // Sort by chain_id, put unchained (usize::MAX) last
+      const sorted = Object.entries(groups)
+        .sort(([a], [b]) => {
+          if (a === b) return 0;
+          if (a === maxChainIdStr) return 1;
+          if (b === maxChainIdStr) return -1;
+          return Number(a) - Number(b);
+        })
+        .map(([chain_id, chainWins]) => ({ chain_id: Number(chain_id), chainWins }));
+      return sorted;
+    }
+    const maxChainId = Number.MAX_SAFE_INTEGER;
+    const maxChainIdStr = String(maxChainId);
+    // Assign a color per chain (cycled)
+    const chainColors = [
+      '#f7e6e6', '#e6f7f0', '#e6eaf7', '#f7f3e6', '#e6f7f7', '#f7e6f2', '#e6f7e6', '#f7f7e6', '#e6e6f7', '#f7e6e6'
+    ];
+    function chainColor(chain_id: number) {
+      if (chain_id === maxChainId) return 'rgba(0,0,0,0.03)';
+      return chainColors[chain_id % chainColors.length];
+    }
+    </script>
+      {#each groupByChain(wins) as { chain_id, chainWins }, i}
+        <div class="chain-section" style="background: {chainColor(chain_id)};">
+          {#if chain_id !== maxChainId}
+            <div class="chain-label">Chain #{chain_id + 1}</div>
+          {/if}
+          {#each chainWins as win (win.id)}
+            <section>
+              <div class="win-row">
+                <div class="win-date">{win.date}</div>
+                <div class="win-actions">
+                  {#if editingId === win.id}
+                    <button on:click={() => saveEdit(win)}>Save</button>
+                    <button class="cancel" on:click={cancelEdit}>Cancel</button>
+                  {:else}
+                    <button on:click={() => beginEdit(win)}>Edit</button>
+                    <button class="cancel" on:click={() => deleteWinEntry(win)}>Delete</button>
+                  {/if}
+                </div>
+              </div>
+              {#if editingId === win.id}
+                <textarea class="edit-text" bind:value={editText} rows="3"></textarea>
+                <input class="edit-tags" type="text" bind:value={editTags} placeholder="Tags" />
+              {:else}
+                <div>{win.text}</div>
+                <div class="log-tags"><em>{win.tags}</em></div>
+              {/if}
+            </section>
+          {/each}
+        </div>
+      {/each}
+    {/if}
   {/if}
 </main>
 
@@ -145,6 +368,17 @@ main {
 .settings-btn:hover {
   background: #f3e7e2;
 }
+.undo-btn, .redo-btn {
+  background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+.undo-btn:disabled, .redo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .add-win-form {
   display: flex;
   gap: 0.7rem;
@@ -157,6 +391,19 @@ main {
   padding: 0.3rem 0.7rem;
   border-radius: 6px;
   border: 1px solid #ccc;
+}
+/* ...existing code... */
+.chain-section {
+  border-radius: 12px;
+  margin-bottom: 2.2rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+}
+.chain-label {
+  font-weight: bold;
+  color: #a95e45;
+  margin-bottom: 0.7rem;
+  font-size: 1.1em;
+  padding-left: 0.5rem;
 }
 .add-win-tags {
   flex: 1;
@@ -183,6 +430,36 @@ section {
   padding: 1rem;
   border-radius: 8px;
   background: rgba(0,0,0,0.03);
+}
+.win-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.win-date {
+  font-weight: 600;
+}
+.win-actions button {
+  margin-left: 0.4rem;
+}
+.win-actions .cancel {
+  background: #f6e3de;
+  border: 1px solid #e3c9c0;
+}
+.edit-text {
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+}
+.edit-tags {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
 }
 .log-tags em {
   color: #a95e45;
@@ -219,5 +496,76 @@ section {
     gap: 1rem;
     margin-top: 1rem;
     justify-content: flex-end;
+  }
+  .trash-btn {
+    background: #eee;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 0.35rem 0.8rem;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  .trash-btn:hover {
+    background: #f0e6e0;
+  }
+  .trash-section {
+    background: #f9f3f1;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    border: 1px solid #e8d4ca;
+  }
+  .trash-section h2 {
+    margin-top: 0;
+    color: #a95e45;
+    font-size: 1.4rem;
+  }
+  .empty-trash {
+    text-align: center;
+    color: #999;
+    padding: 2rem 1rem;
+    font-style: italic;
+  }
+  .deleted-wins-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .deleted-win-card {
+    background: #fff;
+    border: 1px solid #e8d4ca;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .deleted-win-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .deleted-win-date {
+    font-weight: 600;
+    color: #666;
+  }
+  .restore-btn {
+    background: #d4e8d4;
+    border: 1px solid #b8d9b8;
+    border-radius: 6px;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+  }
+  .restore-btn:hover {
+    background: #bfd9bf;
+  }
+  .deleted-win-text {
+    color: #333;
+    margin: 0.5rem 0;
+  }
+  .deleted-win-tags {
+    color: #a95e45;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
   }
 </style>

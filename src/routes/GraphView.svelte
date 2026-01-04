@@ -8,12 +8,25 @@
 
   let networkContainer: HTMLDivElement;
   let network: Network;
+
   let tagGraph: { nodes: string[]; edges: [string, string][] } = { nodes: [], edges: [] };
   let selectedTag: string | null = null;
   let wins: Win[] = [];
   let filteredWins: Win[] = [];
   let nodesDS: DataSet<Node>;
   let edgesDS: DataSet<Edge>;
+
+  // Time filter state
+  let timeFilter = '30'; // '7', '30', or 'all'
+  let customStart = '';
+  let customEnd = '';
+
+  // Sentiment and NER filter state
+  let sentimentFilter = 'all'; // 'all', 'positive', 'neutral', 'negative'
+  let nerFilter = 'all'; // 'all', 'PERSON', 'ORG', 'GPE', etc.
+
+  // Example NER label options (expand as needed)
+  const nerOptions = ['all', 'PERSON', 'ORG', 'GPE', 'EVENT', 'WORK_OF_ART', 'PRODUCT'];
 
   async function exportAsImage() {
     if (!network) return;
@@ -45,79 +58,127 @@
       defaultPath: lastDir ? `${lastDir}/tag-graph.json` : 'tag-graph.json',
       filters: [{ name: 'JSON', extensions: ['json'] }]
         let wins: Win[] = [];
-        let filteredWins: Win[] = [];
-        let timeFilter = '30'; // '7' or '30'
-      await writeTextFile({ path: filePath, contents: json });
-      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-      localStorage.setItem('qw-last-export-dir', dir);
-    }
-  }
 
+        onMount(async () => {
+          wins = await getWins();
+          updateGraph();
+        });
 
-
-  onMount(async () => {
-    tagGraph = await getTagGraph();
-    wins = await getWins();
-    nodesDS = new DataSet<Node>(
-      tagGraph.nodes.map((tag) => ({ id: tag, label: tag }))
-    );
-    edgesDS = new DataSet<Edge>(
-      tagGraph.edges.map(([from, to]) => ({ from, to }))
-    );
-    // Get theme colors from CSS variables
-    const getVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name) || fallback;
-    const bgColor = getVar('--background', '#fff').trim();
-    const textColor = getVar('--text', '#222').trim();
-    const accentColor = getVar('--accent', '#CC785C').trim();
-    network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
-      nodes: {
-        shape: 'dot',
-        size: 18,
-        font: { size: 16, color: textColor },
-        color: {
-          background: accentColor,
-          border: textColor,
-          highlight: { background: textColor, border: accentColor },
-          hover: { background: accentColor, border: textColor }
+        function getFilteredWins() {
+          // Time filter
+          let filtered = wins;
+          if (timeFilter !== 'all') {
+            let start: Date, end: Date;
+            if (timeFilter === 'custom' && customStart && customEnd) {
+              start = new Date(customStart);
+              end = new Date(customEnd);
+            } else {
+              const days = parseInt(timeFilter);
+              end = new Date();
+              start = new Date();
+              start.setDate(end.getDate() - days + 1);
+            }
+            filtered = filtered.filter(win => {
+              if (!win.date) return false;
+              const d = new Date(win.date);
+              return d >= start && d <= end;
+            });
+          }
+          // Sentiment filter (assumes sentiment tag is present in win.tags)
+          if (sentimentFilter !== 'all') {
+            filtered = filtered.filter(win => win.tags && win.tags.split(/[\[\],"]+/).map(t => t.trim()).includes(sentimentFilter));
+          }
+          // NER filter (assumes NER label is present in win.tags)
+          if (nerFilter !== 'all') {
+            filtered = filtered.filter(win => win.tags && win.tags.split(/[\[\],"]+/).map(t => t.trim()).includes(nerFilter.toLowerCase()));
+          }
+          return filtered;
         }
-      },
-      edges: {
-        color: {
-          color: textColor,
-          highlight: accentColor,
-        function applyTimeFilter() {
-          const days = parseInt(timeFilter);
-          const cutoff = new Date();
-          cutoff.setDate(cutoff.getDate() - days + 1);
-          return wins.filter(win => {
-            if (!win.date) return false;
-            const d = new Date(win.date);
-            return d >= cutoff;
+
+        function updateGraph() {
+          filteredWins = getFilteredWins();
+          // Build tag graph from filtered wins
+          const tagSets: string[][] = filteredWins.map(win => (win.tags || '').split(/[\[\],"]+/).map(t => t.trim()).filter(Boolean));
+          const allTags = new Set<string>();
+          tagSets.forEach(tags => tags.forEach(t => allTags.add(t)));
+          const nodes = Array.from(allTags);
+          const edgeSet = new Set<string>();
+          tagSets.forEach(tags => {
+            for (let i = 0; i < tags.length; i++) {
+              for (let j = i + 1; j < tags.length; j++) {
+                const a = tags[i], b = tags[j];
+                const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+                edgeSet.add(key);
+              }
+            }
+          });
+          const edges: [string, string][] = Array.from(edgeSet).map(e => {
+            const [a, b] = e.split('|');
+            return [a, b];
+          });
+          tagGraph = { nodes, edges };
+          // Rebuild vis-network
+          nodesDS = new DataSet<Node>(nodes.map(tag => ({ id: tag, label: tag })));
+          edgesDS = new DataSet<Edge>(edges.map(([from, to]) => ({ from, to })));
+          // Get theme colors from CSS variables
+          const getVar = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name) || fallback;
+          const bgColor = getVar('--background', '#fff').trim();
+          const textColor = getVar('--text', '#222').trim();
+          const accentColor = getVar('--accent', '#CC785C').trim();
+          network = new Network(networkContainer, { nodes: nodesDS, edges: edgesDS }, {
+            nodes: {
+              shape: 'dot',
+              size: 18,
+              font: { size: 16, color: textColor },
+              color: {
+                background: accentColor,
+                border: textColor,
+                highlight: { background: textColor, border: accentColor },
+                hover: { background: accentColor, border: textColor }
+              }
+            },
+            edges: {
+              color: {
+                color: textColor,
+                highlight: accentColor,
+                hover: accentColor,
+                inherit: false
+              },
+              width: 2,
+              smooth: true
+            },
+            physics: { stabilization: { fit: true } },
+            autoResize: true,
+            interaction: {
+              hover: true,
+              navigationButtons: true,
+              selectable: true,
+              zoomView: true,
+              dragView: true
+            },
+            layout: { improvedLayout: true },
+            locale: 'en',
+            manipulation: false
+          });
+          networkContainer.style.background = bgColor;
+          network.once('stabilizationIterationsDone', function() {
+            network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+          });
+          window.addEventListener('resize', () => {
+            network.fit({ animation: false });
+          });
+          network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+              selectedTag = params.nodes[0] as string;
+              filterGraph(selectedTag);
+              filterWins(selectedTag);
+            } else {
+              selectedTag = null;
+              clearFilter();
+              filteredWins = [];
+            }
           });
         }
-          hover: accentColor,
-          inherit: false
-        },
-        width: 2,
-          wins = wins.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          filteredWins = applyTimeFilter();
-        smooth: true
-      },
-      physics: { stabilization: { fit: true } },
-      autoResize: true,
-      interaction: {
-        hover: true,
-        navigationButtons: true,
-        selectable: true,
-        zoomView: true,
-        dragView: true
-      },
-      layout: { improvedLayout: true },
-      locale: 'en',
-      manipulation: false
-    });
-    // Set background color
-    networkContainer.style.background = bgColor;
 
     // Center and fit the graph after stabilization
     network.once('stabilizationIterationsDone', function() {
@@ -189,6 +250,39 @@
   <div class="export-bar">
     <button on:click={exportAsImage}>Export as Image</button>
     <button on:click={exportAsJSON}>Export as JSON</button>
+    <span style="margin-left:2em">
+      <label>Show
+        <select bind:value={timeFilter} on:change={updateGraph}>
+          <option value="7">last 7 days</option>
+          <option value="30">last 30 days</option>
+          <option value="all">all time</option>
+          <option value="custom">custom range</option>
+        </select>
+      </label>
+      {#if timeFilter === 'custom'}
+        <input type="date" bind:value={customStart} on:change={updateGraph} />
+        <input type="date" bind:value={customEnd} on:change={updateGraph} />
+      {/if}
+    </span>
+    <span style="margin-left:2em">
+      <label>Sentiment
+        <select bind:value={sentimentFilter} on:change={updateGraph}>
+          <option value="all">all</option>
+          <option value="positive">positive</option>
+          <option value="neutral">neutral</option>
+          <option value="negative">negative</option>
+        </select>
+      </label>
+    </span>
+    <span style="margin-left:2em">
+      <label>NER
+        <select bind:value={nerFilter} on:change={updateGraph}>
+          {#each nerOptions as opt}
+            <option value={opt}>{opt}</option>
+          {/each}
+        </select>
+      </label>
+    </span>
   </div>
   <div bind:this={networkContainer} class="graph-container"></div>
   {#if selectedTag}

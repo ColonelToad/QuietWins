@@ -41,7 +41,8 @@
     }
   });
 </script>
-<div style="position:relative; min-height:100vh;">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div style="position:relative; min-height:100vh;" id="main-content">
   {#if typeof window !== 'undefined' && window.location.pathname !== '/onboarding' && window.location.pathname !== '/LogView'}
     <button aria-label="Help" title="Help / Onboarding" style="position:fixed; top:18px; right:18px; z-index:1000; background:none; border:none; cursor:pointer; padding:0; margin:0; width:36px; height:36px; border-radius:50%; box-shadow:0 1px 4px #0002; transition:background 0.2s;" on:click={() => goto('/onboarding')}>
       <HelpIcon />
@@ -49,3 +50,20 @@
   {/if}
   <slot />
 </div>
+
+<style>
+  .skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    padding: 0.6rem 1rem;
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    z-index: 2000;
+  }
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+  }
+</style>
