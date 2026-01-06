@@ -143,8 +143,22 @@ pub fn run() {
             let _tray = TrayIconBuilder::new()
                 .icon(icon)
                 .menu(&menu)
+                .tooltip("QuickWins\nDouble click to log a new win")
                 .on_menu_event(move |app, event| {
                     tray::handle_tray_event(app, event);
+                })
+                .on_double_click(|app, _| {
+                    let _ = WebviewWindowBuilder::new(
+                        app,
+                        "input",
+                        WebviewUrl::App("/InputWindow".into())
+                    )
+                    .title("Log a Quiet Win")
+                    .always_on_top(true)
+                    .center()
+                    .resizable(false)
+                    .inner_size(400.0, 220.0)
+                    .build();
                 })
                 .build(app)?;
             // ...existing code...
