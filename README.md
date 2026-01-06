@@ -91,7 +91,39 @@ On first launch, macOS may show a security warning. To allow the app:
 2. Click **"Open Anyway"** for Quiet Wins
 3. Or right-click the app and select **"Open"**
 
-## Usage
+## Downloads
+
+You can download pre-built executables for each platform:
+
+- **Windows**: [Download Quiet Wins for Windows](https://github.com/<your-repo>/releases/latest/download/QuietWins-setup.exe)
+- **macOS**: [Download Quiet Wins for macOS](https://github.com/<your-repo>/releases/latest/download/QuietWins.dmg)
+- **Linux**: [Download Quiet Wins for Linux](https://github.com/<your-repo>/releases/latest/download/QuietWins.AppImage)
+
+> **Note:** If you don't see a download for your OS, you can build from source using the instructions below.
+
+## Building for Each OS
+
+**Windows:**
+Run on Windows 10/11 with Rust and Node.js installed:
+```bash
+npm run tauri build
+```
+Installer will be in `src-tauri/target/release/bundle/msi/` and `src-tauri/target/release/bundle/windows/`.
+
+**macOS:**
+You must build on a Mac (Apple Silicon or Intel). Clone the repo, install Rust and Node.js, then:
+```bash
+npm run tauri build
+```
+Installer will be in `src-tauri/target/release/bundle/dmg/` and `src-tauri/target/release/bundle/macos/`.
+
+**Linux:**
+Build on a Linux machine or VM:
+```bash
+npm run tauri build
+```
+Installer will be in `src-tauri/target/release/bundle/appimage/` and `src-tauri/target/release/bundle/linux/`.
+
 
 ### Quick Start
 1. **Log a Win**: Press `Cmd+Alt+Shift+W` anywhere to open the quick input window

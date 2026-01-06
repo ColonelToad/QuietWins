@@ -25,6 +25,11 @@
       icon: "📊"
     },
     {
+      title: "How Sentiment & NLP Work",
+      content: "Quiet Wins uses Natural Language Processing (NLP) to analyze your entries. Sentiment analysis detects if your win is positive, neutral, or negative. Named Entity Recognition (NER) finds important keywords like people, organizations, or places—helping auto-tag and connect your wins in the graph.",
+      icon: "🧠"
+    },
+    {
       title: "Customize Everything",
       content: "Choose themes, set notification times, enable privacy lock, and customize your experience in Settings.",
       icon: "⚙️"
@@ -126,8 +131,8 @@
   .onboarding {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(3px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -135,9 +140,9 @@
   }
   
   .slide {
-    background: var(--bg-primary);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
     max-width: 500px;
     width: 90%;
     padding: 3rem 2rem;
@@ -159,11 +164,11 @@
   .slide-content h1 {
     margin: 0 0 1rem 0;
     font-size: 1.75rem;
-    color: var(--text-primary);
+    color: #1a1c22;
   }
   
   .slide-content p {
-    color: var(--text-secondary);
+    color: #444a57;
     font-size: 1rem;
     line-height: 1.6;
     margin: 0 0 2rem 0;
@@ -171,7 +176,7 @@
   
   .slide-number {
     font-size: 0.85rem;
-    color: var(--text-tertiary);
+    color: #6f7685;
     margin-bottom: 1.5rem;
   }
   
@@ -184,16 +189,16 @@
   .nav-btn {
     padding: 0.65rem 1.5rem;
     border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    border: 1px solid #e3e6ed;
+    background: #f8f9fc;
+    color: #1a1c22;
     cursor: pointer;
     font-size: 0.95rem;
     transition: all 0.2s;
   }
   
   .nav-btn:hover:not(:disabled) {
-    background: var(--bg-hover);
+    background: #eef1f7;
     transform: translateY(-1px);
   }
   
@@ -203,14 +208,14 @@
   }
   
   .nav-btn.primary {
-    background: var(--accent);
+    background: #6f8bff;
     color: white;
-    border-color: var(--accent);
+    border-color: #6f8bff;
   }
   
   .nav-btn.primary:hover:not(:disabled) {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
+    background: #5c79f5;
+    border-color: #5c79f5;
   }
   
   .skip-btn {
@@ -219,23 +224,23 @@
     right: 1rem;
     background: transparent;
     border: none;
-    color: var(--text-tertiary);
+    color: #6f7685;
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0.5rem;
   }
   
   .skip-btn:hover {
-    color: var(--text-primary);
+    color: #1a1c22;
   }
   
   .slide-nav {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 2rem;
-    color: var(--text-tertiary);
-    opacity: 0.3;
+    font-size: 1.25rem;
+    color: #6f7685;
+    opacity: 0.25;
     pointer-events: none;
   }
   

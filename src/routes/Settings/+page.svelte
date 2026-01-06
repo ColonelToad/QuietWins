@@ -123,15 +123,32 @@
   </div>
   <div class="setting-group">
     <label for="font-select">Font:</label>
-    <div class="custom-font-dropdown" tabindex="0" on:blur={() => showFontList = false}>
-      <div class="selected-font" on:click={() => showFontList = !showFontList} style="font-family: {$settings.font}, serif;">
+    <div class="custom-font-dropdown" on:focusout={() => showFontList = false}>
+      <button
+        id="font-select"
+        type="button"
+        class="selected-font"
+        aria-haspopup="listbox"
+        aria-expanded={showFontList}
+        on:click={() => showFontList = !showFontList}
+        style="font-family: {$settings.font}, serif;"
+      >
         {$settings.font}
         <span class="dropdown-arrow">▼</span>
-      </div>
+      </button>
       {#if showFontList}
-        <ul class="font-list">
+        <ul class="font-list" role="listbox" aria-label="Choose font">
           {#each fontOptions as font}
-            <li style="font-family: {font}, serif;" class:active={font === $settings.font} on:click={() => selectFont(font)}>{font}</li>
+            <li>
+              <button
+                type="button"
+                role="option"
+                aria-selected={font === $settings.font}
+                class:active={font === $settings.font}
+                style="font-family: {font}, serif;"
+                on:click={() => selectFont(font)}
+              >{font}</button>
+            </li>
           {/each}
         </ul>
       {/if}
@@ -170,10 +187,10 @@
     <div class="modal-backdrop">
       <div class="modal">
         <h3>Set Privacy Lock Password</h3>
-        <label>Password:</label>
-        <input type="password" bind:value={password} autocomplete="new-password" />
-        <label>Retype Password:</label>
-        <input type="password" bind:value={confirmPassword} autocomplete="new-password" />
+        <label for="privacy-pass">Password:</label>
+        <input id="privacy-pass" type="password" bind:value={password} autocomplete="new-password" />
+        <label for="privacy-pass-2">Retype Password:</label>
+        <input id="privacy-pass-2" type="password" bind:value={confirmPassword} autocomplete="new-password" />
         {#if passwordError}
           <div class="error">{passwordError}</div>
         {/if}
@@ -192,20 +209,7 @@
 </main>
 
 <style>
-    .see-more-btn {
-      background: #eee;
-      color: #333;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      padding: 0.2rem 0.8rem;
-      font-size: 0.95rem;
-      margin-left: 0.7rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .see-more-btn:hover {
-      background: #f3e7e2;
-    }
+  
   .custom-theme-group {
     display: flex;
     flex-direction: column;

@@ -15,13 +15,18 @@
   let autoTag: Settings['autoTag'];
   let privacyLock: Settings['privacyLock'];
   let startup: Settings['startup'];
+  let telemetryEnabled: Settings['telemetryEnabled'];
 
 
-$: ({ theme, icon, notifTime, notifSound, notifEnabled, weeklyRecap, notifFrequency, dailyMessage, weeklyMessage, shortcut, font, autoTag, privacyLock, startup } = $settings);
+$: ({ theme, icon, notifTime, notifSound, notifEnabled, weeklyRecap, notifFrequency, dailyMessage, weeklyMessage, shortcut, font, autoTag, privacyLock, startup, telemetryEnabled } = $settings);
 
   function saveSettings() {
-    settings.set({ theme, icon, notifTime, notifSound, notifEnabled, weeklyRecap, notifFrequency, dailyMessage, weeklyMessage, shortcut, font, autoTag, privacyLock, startup });
+    settings.set({ theme, icon, notifTime, notifSound, notifEnabled, weeklyRecap, notifFrequency, dailyMessage, weeklyMessage, shortcut, font, autoTag, privacyLock, startup, telemetryEnabled });
     alert('Settings saved!');
+  }
+
+  async function checkForUpdates() {
+    alert('Update check stub: this will be wired to the updater in production.');
   }
 
   // Test OS-level notification using Tauri's JS API
@@ -86,6 +91,44 @@ $: ({ theme, icon, notifTime, notifSound, notifEnabled, weeklyRecap, notifFreque
       alert('Settings imported.');
     } catch (e) {
       alert('Failed to import settings.');
+      console.error(e);
+    }
+  }
+
+  async function exportDatabase() {
+    try {
+      const [{ save }, { readFile, BaseDirectory }] = await Promise.all([
+        import('@tauri-apps/api/dialog'),
+        import('@tauri-apps/plugin-fs')
+      ]);
+      const target = await save({
+        filters: [{ name: 'SQLite', extensions: ['sqlite'] }],
+        defaultPath: 'quietwins-backup.sqlite'
+      });
+      if (!target) return;
+      const bytes = await readFile('quietwins.sqlite', { baseDir: BaseDirectory.AppData });
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      await writeFile(target, bytes);
+      alert('Database exported.');
+    } catch (e) {
+      alert('Failed to export database.');
+      console.error(e);
+    }
+  }
+
+  async function importDatabase() {
+    try {
+      const [{ open }, { readFile, writeFile, BaseDirectory }] = await Promise.all([
+        import('@tauri-apps/api/dialog'),
+        import('@tauri-apps/plugin-fs')
+      ]);
+      const picked = await open({ multiple: false, filters: [{ name: 'SQLite', extensions: ['sqlite'] }] });
+      if (!picked || Array.isArray(picked)) return;
+      const bytes = await readFile(picked);
+      await writeFile('quietwins.sqlite', bytes, { baseDir: BaseDirectory.AppData });
+      alert('Database imported. Restart the app.');
+    } catch (e) {
+      alert('Failed to import database.');
       console.error(e);
     }
   }
@@ -166,15 +209,23 @@ $: ({ theme, icon, notifTime, notifSound, notifEnabled, weeklyRecap, notifFreque
     <input id="privacy-lock" type="checkbox" bind:checked={privacyLock} />
   </div>
   <div class="setting-group">
+    <label for="telemetry">Enable telemetry (anonymous diagnostics):</label>
+    <input id="telemetry" type="checkbox" bind:checked={telemetryEnabled} />
+    <span class="note">No data sent in this build; toggle is opt-in placeholder.</span>
+  </div>
+  <div class="setting-group">
     <label for="startup">Start at Login:</label>
     <input id="startup" type="checkbox" bind:checked={startup} />
     <span class="note">(Requires app restart)</span>
   </div>
   <button on:click={saveSettings}>Save Settings</button>
   <button aria-label="Send test notification" on:click={testNotification} style="margin-left:1em">Test Notification</button>
+  <button aria-label="Check for updates" on:click={checkForUpdates} style="margin-left:1em">Check for Updates</button>
   <div style="margin-top:1rem; display:flex; gap:0.8rem; flex-wrap:wrap;">
     <button on:click={exportSettingsFile}>Export Settings</button>
     <button on:click={importSettingsFile}>Import Settings</button>
+    <button on:click={exportDatabase}>Export Database</button>
+    <button on:click={importDatabase}>Import Database</button>
   </div>
 </main>
 

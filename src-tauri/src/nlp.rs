@@ -45,7 +45,9 @@ pub async fn suggest_tags_async(text: &str) -> Vec<String> {
                     // Entities
                     if let Some(entities) = result["entities"].as_array() {
                         for ent in entities {
-                            if let (Some(text), Some(label)) = (ent["text"].as_str(), ent["label"].as_str()) {
+                            if let (Some(text), Some(label)) =
+                                (ent["text"].as_str(), ent["label"].as_str())
+                            {
                                 // Use label as tag, or combine
                                 tags.push(label.to_lowercase());
                                 // Optionally, add entity text as tag for PERSON/ORG/GPE
@@ -65,9 +67,9 @@ pub async fn suggest_tags_async(text: &str) -> Vec<String> {
     tags
 }
 
-use serde::{Deserialize, Serialize};
-use reqwest::Client;
 use crate::mock_data::{get_mock_wins, MockWin};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NlpResult {
@@ -97,7 +99,13 @@ pub async fn analyze_mock_wins() -> Result<Vec<(MockWin<'static>, NlpResult)>, r
         let result = &results[i];
         let sentiment = result["sentiment"].clone();
         let entities: Vec<Entity> = serde_json::from_value(result["entities"].clone()).unwrap();
-        enriched.push((win, NlpResult { sentiment, entities }));
+        enriched.push((
+            win,
+            NlpResult {
+                sentiment,
+                entities,
+            },
+        ));
     }
     Ok(enriched)
 }
@@ -108,11 +116,15 @@ pub async fn run_nlp_on_mock_data() {
     match crate::nlp::analyze_mock_wins().await {
         Ok(results) => {
             for (win, nlp) in results {
-                println!("[MOCK NLP] {} | Sentiment: {:?} | Entities: {:?}", win.text, nlp.sentiment, nlp.entities);
+                println!(
+                    "[MOCK NLP] {} | Sentiment: {:?} | Entities: {:?}",
+                    win.text, nlp.sentiment, nlp.entities
+                );
             }
         }
         Err(e) => {
-            eprintln!("[MOCK NLP ERROR] {e}");
+            // In dev, the Python service may not be running; log once and continue
+            eprintln!("[MOCK NLP] Skipping mock analysis (service unreachable: {e})");
         }
     }
 }

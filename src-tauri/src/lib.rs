@@ -6,25 +6,34 @@ fn get_wins_with_chains(app: tauri::AppHandle) -> Result<Vec<db::WinWithChain>, 
 fn suggest_tags_for_text(text: String) -> Vec<String> {
     nlp::suggest_tags(&text)
 }
+use chrono::{Local, NaiveTime};
 use std::fs;
 use std::io::{Read, Write};
-use chrono::{Local, NaiveTime, Timelike};
 use tauri::Manager;
 
 const NOTIF_TIME_FILE: &str = "notif_time.txt";
 
 #[tauri::command]
 fn set_notif_time(app: tauri::AppHandle, notif_time: String) -> Result<(), String> {
-    let path = app.path().app_data_dir().expect("Failed to get app data dir").join(NOTIF_TIME_FILE);
+    let path = app
+        .path()
+        .app_data_dir()
+        .expect("Failed to get app data dir")
+        .join(NOTIF_TIME_FILE);
     fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
     let mut file = fs::File::create(path).map_err(|e| e.to_string())?;
-    file.write_all(notif_time.as_bytes()).map_err(|e| e.to_string())?;
+    file.write_all(notif_time.as_bytes())
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn get_notif_time(app: tauri::AppHandle) -> Result<String, String> {
-    let path = app.path().app_data_dir().expect("Failed to get app data dir").join(NOTIF_TIME_FILE);
+    let path = app
+        .path()
+        .app_data_dir()
+        .expect("Failed to get app data dir")
+        .join(NOTIF_TIME_FILE);
     if !path.exists() {
         return Ok("20:00".to_string()); // default
     }
@@ -38,23 +47,26 @@ fn get_tag_graph(app: tauri::AppHandle) -> Result<db::TagGraph, String> {
     db::get_tag_graph(&app).map_err(|e| e.to_string())
 }
 mod db;
-mod tray;
 mod mock_data;
 pub mod nlp;
+mod tray;
 
 use tauri::menu::{Menu, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
-use tauri::{WebviewWindowBuilder, WebviewUrl};
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
 
 #[tauri::command]
 fn add_win(app: tauri::AppHandle, date: String, text: String, tags: String) -> Result<(), String> {
-    println!("[add_win command] called with date: {}, text: {}, tags: {}", date, text, tags);
+    println!(
+        "[add_win command] called with date: {}, text: {}, tags: {}",
+        date, text, tags
+    );
     match db::add_win(&app, &date, &text, &tags) {
         Ok(res) => {
             println!("[add_win command] success");
             Ok(res)
-        },
+        }
         Err(e) => {
             println!("[add_win command] error: {}", e);
             Err(e.to_string())
@@ -63,7 +75,13 @@ fn add_win(app: tauri::AppHandle, date: String, text: String, tags: String) -> R
 }
 
 #[tauri::command]
-fn update_win(app: tauri::AppHandle, id: i64, date: String, text: String, tags: String) -> Result<(), String> {
+fn update_win(
+    app: tauri::AppHandle,
+    id: i64,
+    date: String,
+    text: String,
+    tags: String,
+) -> Result<(), String> {
     db::update_win(&app, id, &date, &text, &tags).map_err(|e| e.to_string())
 }
 
@@ -89,7 +107,7 @@ fn get_wins(app: tauri::AppHandle) -> Result<Vec<db::Win>, String> {
         Ok(wins) => {
             println!("[get_wins command] success, returning {} wins", wins.len());
             Ok(wins)
-        },
+        }
         Err(e) => {
             println!("[get_wins command] error: {}", e);
             Err(e.to_string())
@@ -109,13 +127,14 @@ pub fn run() {
                 // Run NLP on mock data and print results
                 crate::nlp::run_nlp_on_mock_data();
             }
-            
+            // ...existing code...
             let log_win = MenuItemBuilder::new("Log Win").id("log_win").build(app)?;
-            let view_log = MenuItemBuilder::new("View Log").id("view_log").build(app)?;
+            let view_log = MenuItemBuilder::new("View Logs").id("view_log").build(app)?;
+            let settings_item = MenuItemBuilder::new("Settings").id("settings").build(app)?;
             let quit = MenuItemBuilder::new("Quit").id("quit").build(app)?;
-            
-            let menu = Menu::with_items(app, &[&log_win, &view_log, &quit])?;
-            
+            // ...existing code...
+            let menu = Menu::with_items(app, &[&log_win, &view_log, &settings_item, &quit])?;
+            // ...existing code...
             use tauri::image::Image;
             let icon_bytes = std::fs::read("icons/icon-warm-16x16.png")?;
             let img = image::load_from_memory(&icon_bytes)?.to_rgba8();
@@ -128,10 +147,10 @@ pub fn run() {
                     tray::handle_tray_event(app, event);
                 })
                 .build(app)?;
-            
+            // ...existing code...
             use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, GlobalShortcutExt};
             let shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::ALT | Modifiers::SHIFT), Code::KeyW);
-            
+            // ...existing code...
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new().with_handler(move |app, _shortcut, _event| {
                     let _ = WebviewWindowBuilder::new(
@@ -150,7 +169,27 @@ pub fn run() {
             )?;
 
             app.global_shortcut().register(shortcut)?;
-            
+            // ...existing code...
+            // Start NLP service as a subprocess (for bundled production builds)
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let resource_dir = app_handle.path().resource_dir();
+                if let Ok(resource_dir) = resource_dir {
+                    let candidates = [
+                        resource_dir.join("nlp_service.exe"),
+                        resource_dir.join("nlp_service"),
+                    ];
+                    if let Some(bin) = candidates.iter().find(|p| p.exists()) {
+                        match std::process::Command::new(bin).spawn() {
+                            Ok(_) => println!("[nlp] Started bundled NLP service from {}", bin.display()),
+                            Err(e) => println!("[nlp] Failed to start NLP service: {}", e),
+                        }
+                    } else {
+                        println!("[nlp] Bundled NLP service binary not found in resources directory");
+                    }
+                }
+            });
+            // ...existing code...
             // Cleanup old deleted wins (every hour, 48hr retention)
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -159,7 +198,7 @@ pub fn run() {
                     let _ = db::cleanup_old_deletions(&app_handle, 48);
                 }
             });
-            
+            // ...existing code...
             // Daily and every-7-days notification scheduler thread
             use std::sync::atomic::{AtomicBool, Ordering};
             use std::sync::Once;
@@ -172,7 +211,6 @@ pub fn run() {
                     return;
                 }
                 std::thread::spawn(move || {
-                use chrono::{Datelike};
                 let mut last_weekly_recap: Option<chrono::DateTime<Local>> = None;
                     loop {
                     // Read notif time from file (default to 20:00)
@@ -261,7 +299,7 @@ pub fn run() {
                     }
                 });
             });
-            
+            // ...existing code...
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![add_win, update_win, delete_win, restore_win, get_deleted_wins, get_wins, get_tag_graph, set_notif_time, get_notif_time, suggest_tags_for_text, get_wins_with_chains])

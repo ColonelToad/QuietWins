@@ -16,6 +16,7 @@ export interface Settings {
   autoTag: boolean;
   privacyLock: boolean;
   startup: boolean;
+  telemetryEnabled: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -33,11 +34,13 @@ const defaultSettings: Settings = {
   autoTag: true,
   privacyLock: false,
   startup: true,
+  telemetryEnabled: false,
 };
 
 
 // Load notification time from backend if available
 async function loadNotifTimeFromBackend(): Promise<string> {
+  if (typeof window === 'undefined') return defaultSettings.notifTime;
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     const time = await invoke<string>('get_notif_time');
@@ -80,8 +83,9 @@ async function syncSettingsToBackend(val: Settings) {
     await invoke('set_notif_time', { notif_time: val.notifTime });
   } catch {}
   try {
-    const { writeTextFile, BaseDirectory } = await import('@tauri-apps/api/fs');
-    await writeTextFile('settings.json', JSON.stringify(val), { dir: BaseDirectory.AppData });
+    const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const appDataPath = BaseDirectory.AppData;
+    await writeTextFile(`${appDataPath}/settings.json`, JSON.stringify(val));
   } catch {}
 }
 

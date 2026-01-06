@@ -3,7 +3,6 @@
   import { getWins, addWin, getWinsWithChains, updateWin as updateWinApi, deleteWin as deleteWinApi, getDeletedWins, restoreWin, type WinWithChain } from '../lib/tauri';
   import { settings } from '../lib/settings';
   import Settings from 'lucide-svelte/icons/settings';
-  import { goto } from '$app/navigation';
   let wins: WinWithChain[] = [];
   let deletedWins: any[] = [];
   let newText = '';
@@ -15,6 +14,30 @@
   let passwordError = '';
   let unlocked = false;
   let showTrash = false;
+
+  // Group wins by chain_id for rendering
+  const maxChainId = Number.MAX_SAFE_INTEGER;
+  const maxChainIdStr = String(maxChainId);
+  // Subtle grouping – no distinct color coding
+  const chainColors = ['transparent'];
+  function groupByChain(list: WinWithChain[]) {
+    const groups: Record<number, WinWithChain[]> = {};
+    for (const win of list) {
+      if (!groups[win.chain_id]) groups[win.chain_id] = [];
+      groups[win.chain_id].push(win);
+    }
+    return Object.entries(groups)
+      .sort(([a], [b]) => {
+        if (a === b) return 0;
+        if (a === maxChainIdStr) return 1;
+        if (b === maxChainIdStr) return -1;
+        return Number(a) - Number(b);
+      })
+      .map(([chain_id, chainWins]) => ({ chain_id: Number(chain_id), chainWins }));
+  }
+  function chainColor(chain_id: number) {
+    return 'transparent';
+  }
 
   // Undo/redo stacks for edits
   type WinSnapshot = { id: number; date: string; text: string; tags: string };
@@ -189,16 +212,14 @@
     </div>
   {/if}
   {#if unlocked}
-    <div class="header">
+      <div class="header">
       <h1>Quiet Wins Log</h1>
       <div class="header-actions">
-      <button class="graph-btn" on:click={() => goto('/GraphView')} title="View Tag Graph">Graph</button>
-      <button class="settings-btn" on:click={() => goto('/Settings')} title="Settings">
+      <a class="graph-btn" href="/GraphView" title="View Tag Graph">Graph</a>
+      <a class="settings-btn icon-btn" href="/Settings" title="Settings" aria-label="Settings">
         <Settings class="settings-icon" />
-      </button>
-      <button class="help-btn" on:click={() => goto('/onboarding')} title="Help / Onboarding" style="background:none; border:none; cursor:pointer; padding:0.2rem; border-radius:50%;">
-        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><circle cx="14" cy="14" r="12" stroke="#888" stroke-width="2" fill="white"/><text x="14" y="19" text-anchor="middle" font-size="18" fill="#888" font-family="Arial, sans-serif">?</text></svg>
-      </button>
+      </a>
+      <!-- Help button removed per request -->
       <button class="undo-btn" on:click={undoLast} disabled={undoStack.length === 0} title="Undo last edit">Undo</button>
       <button class="redo-btn" on:click={redoLast} disabled={redoStack.length === 0} title="Redo last edit">Redo</button>
       <button class="trash-btn" on:click={toggleTrash} title="View deleted wins">🗑️ Trash</button>
@@ -233,9 +254,6 @@
     {/if}
     {#each groupByChain(wins) as { chain_id, chainWins }, i}
       <div class="chain-section" style="background: {chainColor(chain_id)};">
-        {#if chain_id !== maxChainId}
-          <div class="chain-label">Chain #{chain_id + 1}</div>
-        {/if}
         {#each chainWins as win (win.id)}
           <section>
             <div class="win-row">
@@ -261,68 +279,6 @@
         {/each}
       </div>
     {/each}
-    <script lang="ts">
-    // ...existing code...
-
-    // Group wins by chain_id
-    function groupByChain(wins: WinWithChain[]) {
-      const groups: Record<number, WinWithChain[]> = {};
-      for (const win of wins) {
-        if (!groups[win.chain_id]) groups[win.chain_id] = [];
-        groups[win.chain_id].push(win);
-      }
-      // Sort by chain_id, put unchained (usize::MAX) last
-      const sorted = Object.entries(groups)
-        .sort(([a], [b]) => {
-          if (a === b) return 0;
-          if (a === maxChainIdStr) return 1;
-          if (b === maxChainIdStr) return -1;
-          return Number(a) - Number(b);
-        })
-        .map(([chain_id, chainWins]) => ({ chain_id: Number(chain_id), chainWins }));
-      return sorted;
-    }
-    const maxChainId = Number.MAX_SAFE_INTEGER;
-    const maxChainIdStr = String(maxChainId);
-    // Assign a color per chain (cycled)
-    const chainColors = [
-      '#f7e6e6', '#e6f7f0', '#e6eaf7', '#f7f3e6', '#e6f7f7', '#f7e6f2', '#e6f7e6', '#f7f7e6', '#e6e6f7', '#f7e6e6'
-    ];
-    function chainColor(chain_id: number) {
-      if (chain_id === maxChainId) return 'rgba(0,0,0,0.03)';
-      return chainColors[chain_id % chainColors.length];
-    }
-    </script>
-      {#each groupByChain(wins) as { chain_id, chainWins }, i}
-        <div class="chain-section" style="background: {chainColor(chain_id)};">
-          {#if chain_id !== maxChainId}
-            <div class="chain-label">Chain #{chain_id + 1}</div>
-          {/if}
-          {#each chainWins as win (win.id)}
-            <section>
-              <div class="win-row">
-                <div class="win-date">{win.date}</div>
-                <div class="win-actions">
-                  {#if editingId === win.id}
-                    <button on:click={() => saveEdit(win)}>Save</button>
-                    <button class="cancel" on:click={cancelEdit}>Cancel</button>
-                  {:else}
-                    <button on:click={() => beginEdit(win)}>Edit</button>
-                    <button class="cancel" on:click={() => deleteWinEntry(win)}>Delete</button>
-                  {/if}
-                </div>
-              </div>
-              {#if editingId === win.id}
-                <textarea class="edit-text" bind:value={editText} rows="3"></textarea>
-                <input class="edit-tags" type="text" bind:value={editTags} placeholder="Tags" />
-              {:else}
-                <div>{win.text}</div>
-                <div class="log-tags"><em>{win.tags}</em></div>
-              {/if}
-            </section>
-          {/each}
-        </div>
-      {/each}
     {/if}
   {/if}
 </main>
@@ -357,17 +313,20 @@ main {
 .graph-btn:hover {
   background: color-mix(in srgb, var(--accent, #CC785C) 80%, #000 20%);
 }
-.settings-btn {
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   background: none;
   border: none;
-  cursor: pointer;
-  padding: 0.2rem;
   border-radius: 50%;
+  cursor: pointer;
   transition: background 0.2s;
 }
-.settings-btn:hover {
-  background: #f3e7e2;
-}
+.icon-btn:hover { background: #f3e7e2; }
+.settings-icon { width: 22px; height: 22px; }
 .undo-btn, .redo-btn {
   background: #eee;
   border: 1px solid #ccc;
@@ -395,15 +354,8 @@ main {
 /* ...existing code... */
 .chain-section {
   border-radius: 12px;
-  margin-bottom: 2.2rem;
-  padding: 0.5rem 0.5rem 0.5rem 0.5rem;
-}
-.chain-label {
-  font-weight: bold;
-  color: #a95e45;
-  margin-bottom: 0.7rem;
-  font-size: 1.1em;
-  padding-left: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.25rem;
 }
 .add-win-tags {
   flex: 1;
@@ -426,10 +378,11 @@ main {
   background: color-mix(in srgb, var(--accent, #CC785C) 80%, #000 20%);
 }
 section {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
+  margin-bottom: 0.8rem;
+  padding: 0.8rem;
   border-radius: 8px;
-  background: rgba(0,0,0,0.03);
+  background: #fff;
+  border: 1px solid #eee;
 }
 .win-row {
   display: flex;
