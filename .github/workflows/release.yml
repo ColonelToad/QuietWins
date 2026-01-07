@@ -56,9 +56,24 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Upload built artifacts
+      - name: Upload built artifacts (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-${{ matrix.platform }}-${{ matrix.args }}
+          path: |
+            src-tauri/target/*/release/bundle/dmg/*.dmg
+
+      - name: Upload built artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: tauri-build-${{ matrix.platform }}
-          path: |
-            src-tauri/target/release/bundle/**/*
+          path: src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Upload built artifacts (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
