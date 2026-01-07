@@ -52,7 +52,7 @@ pub mod nlp;
 mod tray;
 
 use tauri::menu::{Menu, MenuItemBuilder};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
 
@@ -147,18 +147,21 @@ pub fn run() {
                 .on_menu_event(move |app, event| {
                     tray::handle_tray_event(app, event);
                 })
-                .on_double_click(|app, _| {
-                    let _ = WebviewWindowBuilder::new(
-                        app,
-                        "input",
-                        WebviewUrl::App("/InputWindow".into())
-                    )
-                    .title("Log a Quiet Win")
-                    .always_on_top(true)
-                    .center()
-                    .resizable(false)
-                    .inner_size(400.0, 220.0)
-                    .build();
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::DoubleClick { .. } = event {
+                        let app = tray.app_handle();
+                        let _ = WebviewWindowBuilder::new(
+                            app,
+                            "input",
+                            WebviewUrl::App("/InputWindow".into())
+                        )
+                        .title("Log a Quiet Win")
+                        .always_on_top(true)
+                        .center()
+                        .resizable(false)
+                        .inner_size(400.0, 220.0)
+                        .build();
+                    }
                 })
                 .build(app)?;
             // ...existing code...
