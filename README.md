@@ -15,6 +15,35 @@ A personal journaling app for macOS to track your daily wins and achievements. B
 - 🔔 **Notifications**: Daily and weekly recap reminders
 - ♿ **Accessible**: ARIA labels, keyboard navigation, skip links
 
+---
+
+## Downloads
+
+You can download pre-built executables for each platform:
+
+- **Windows Installer (EXE):**  
+  [tauri-app_0.1.0_x64-setup.exe](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_0.1.0_x64-setup.exe)
+- **Windows Installer (MSI):**  
+  [tauri-app_0.1.0_x64_en-US.msi](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_0.1.0_x64_en-US.msi)
+- **macOS (Intel DMG):**  
+  [tauri-app_0.1.0_x64.dmg](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_0.1.0_x64.dmg)
+- **macOS (Apple Silicon DMG):**  
+  [tauri-app_0.1.0_aarch64.dmg](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_0.1.0_aarch64.dmg)
+- **macOS (Apple Silicon app tar.gz):**  
+  [tauri-app_aarch64.app.tar.gz](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_aarch64.app.tar.gz)
+- **macOS (Intel app tar.gz):**  
+  [tauri-app_x64.app.tar.gz](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_x64.app.tar.gz)
+- **Linux (AppImage):**  
+  [tauri-app_0.1.0_amd64.AppImage](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_0.1.0_amd64.AppImage)
+- **Linux (DEB):**  
+  [tauri-app_0.1.0_amd64.deb](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app_0.1.0_amd64.deb)
+- **Linux (RPM):**  
+  [tauri-app-0.1.0-1.x86_64.rpm](https://github.com/ColonelToad/QuietWins/releases/latest/download/tauri-app-0.1.0-1.x86_64.rpm)
+
+> **Note:** If you don't see a download for your OS, you can build from source using the instructions below.
+
+---
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -35,37 +64,7 @@ cargo --version   # Comes with Rust
 npm --version     # Comes with Node.js
 ```
 
-## Development Setup
-
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd QuietWins
-```
-
-### 2. Install Dependencies
-```bash
-# Install Node.js dependencies
-npm install
-
-# Rust dependencies will be installed automatically during build
-```
-
-### 3. Run Development Server
-```bash
-# Start the development server with hot-reload
-npm run tauri dev
-
-# Or separately:
-# Terminal 1 - Frontend dev server
-npm run dev
-
-# Terminal 2 - Tauri dev build
-cd src-tauri
-cargo tauri dev
-```
-
-The app will open automatically with hot-reload enabled for both frontend and backend.
+---
 
 ## Building for Production
 
@@ -91,15 +90,7 @@ On first launch, macOS may show a security warning. To allow the app:
 2. Click **"Open Anyway"** for Quiet Wins
 3. Or right-click the app and select **"Open"**
 
-## Downloads
-
-You can download pre-built executables for each platform:
-
-- **Windows**: [Download Quiet Wins for Windows](https://github.com/<your-repo>/releases/latest/download/QuietWins-setup.exe)
-- **macOS**: [Download Quiet Wins for macOS](https://github.com/<your-repo>/releases/latest/download/QuietWins.dmg)
-- **Linux**: [Download Quiet Wins for Linux](https://github.com/<your-repo>/releases/latest/download/QuietWins.AppImage)
-
-> **Note:** If you don't see a download for your OS, you can build from source using the instructions below.
+---
 
 ## Building for Each OS
 
@@ -124,6 +115,7 @@ npm run tauri build
 ```
 Installer will be in `src-tauri/target/release/bundle/appimage/` and `src-tauri/target/release/bundle/linux/`.
 
+---
 
 ### Quick Start
 1. **Log a Win**: Press `Cmd+Alt+Shift+W` anywhere to open the quick input window
@@ -157,66 +149,7 @@ Installer will be in `src-tauri/target/release/bundle/appimage/` and `src-tauri/
 - Click **↻ Restore** to recover a win
 - After 48 hours, wins are permanently deleted
 
-## Development
-
-### Project Structure
-```
-QuietWins/
-├── src/                    # Frontend (SvelteKit)
-│   ├── lib/               # Shared components & utilities
-│   │   ├── settings.ts    # Settings store
-│   │   ├── tauri.ts       # Tauri API wrappers
-│   │   └── *.svelte       # Reusable components
-│   └── routes/            # SvelteKit pages
-│       ├── +layout.svelte # App layout
-│       ├── +page.svelte   # Home page
-│       ├── LogView/       # Main log view
-│       ├── GraphView/     # Tag graph visualization
-│       ├── RecapView/     # Stats & summaries
-│       ├── Settings/      # Settings page
-│       └── InputWindow/   # Quick input modal
-├── src-tauri/             # Backend (Rust/Tauri)
-│   ├── src/
-│   │   ├── main.rs        # App entry point
-│   │   ├── lib.rs         # Tauri commands & setup
-│   │   ├── db.rs          # SQLite database operations
-│   │   ├── nlp.rs         # NLP tag suggestions
-│   │   ├── tray.rs        # System tray handling
-│   │   └── mock_data.rs   # Dev/test data
-│   ├── Cargo.toml         # Rust dependencies
-│   └── tauri.conf.json    # Tauri configuration
-└── static/                # Static assets
-```
-
-### Database
-- **Location**: `~/Library/Application Support/com.quietwins.app/quietwins.sqlite`
-- **Tables**:
-  - `wins`: Active wins (id, date, text, tags, created_at)
-  - `deleted_wins`: Soft-deleted wins (id, date, text, tags, created_at, deleted_at)
-
-### Adding Features
-1. **Backend Command**: Add to `src-tauri/src/lib.rs` as `#[tauri::command]`
-2. **Database Function**: Add to `src-tauri/src/db.rs`
-3. **Frontend API**: Add wrapper to `src/lib/tauri.ts`
-4. **UI Component**: Create in `src/routes/` or `src/lib/`
-
-## Testing
-
-### Manual Testing
-```bash
-# Run in dev mode with mock data
-npm run tauri dev
-
-# Check database
-sqlite3 ~/Library/Application\ Support/com.quietwins.app/quietwins.sqlite
-```
-
-### Build Testing
-```bash
-# Build and test the production bundle
-npm run tauri build
-open src-tauri/target/release/bundle/macos/Quiet\ Wins.app
-```
+---
 
 ## Troubleshooting
 
@@ -237,6 +170,8 @@ open src-tauri/target/release/bundle/macos/Quiet\ Wins.app
 - **Check Permissions**: System Preferences > Notifications > Quiet Wins
 - **Enable in Settings**: Open app settings and toggle notifications on
 
+---
+
 ## Configuration
 
 ### Customization
@@ -252,6 +187,8 @@ Edit `src-tauri/tauri.conf.json` for:
 - System tray icon
 - Build configuration
 
+---
+
 ## Contributing
 
 This is a personal project, but suggestions and bug reports are welcome!
@@ -261,9 +198,13 @@ This is a personal project, but suggestions and bug reports are welcome!
 3. Make your changes
 4. Submit a pull request
 
+---
+
 ## License
 
 [Add your license here]
+
+---
 
 ## Acknowledgments
 
@@ -272,6 +213,8 @@ This is a personal project, but suggestions and bug reports are welcome!
 - **D3.js**: Graph visualization
 - **Rust**: Backend language
 - **SQLite**: Database
+
+---
 
 ## Support
 
@@ -285,4 +228,3 @@ For issues or questions:
 **Version**: 1.0.0  
 **Platform**: macOS 10.15+  
 **Last Updated**: January 2026
-
