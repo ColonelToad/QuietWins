@@ -63,9 +63,9 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            ls -lh src-tauri/resources/nlp_service.exe
+            ls -lh src-tauri/resources/nlp_service.exe || (echo 'Error: NLP service binary not found' && exit 1)
           else
-            ls -lh src-tauri/resources/nlp_service
+            ls -lh src-tauri/resources/nlp_service || (echo 'Error: NLP service binary not found' && exit 1)
           fi
 
       - uses: tauri-apps/tauri-action@v0
