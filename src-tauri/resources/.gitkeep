@@ -1,3 +1,0 @@
-# Placeholder for NLP service exe
-# This file is replaced during production builds by build-nlp.js script
-# For development, the NLP service is started separately via start-nlp.js

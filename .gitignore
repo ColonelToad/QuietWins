@@ -16,6 +16,7 @@ vite.config.ts.timestamp-*
 # Tauri build output
 /src-tauri/bundle
 /src-tauri/target
+/src-tauri/resources
 
 # VS Code
 .vscode
