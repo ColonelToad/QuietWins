@@ -11,8 +11,8 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
     "tauri": "tauri",
     "tauri:dev": "node scripts/start-nlp.js && tauri dev",
-    "build-nlp": "node scripts/build-nlp.js",
-    "tauri:build": "npm run build-nlp && npm run build && tauri build && node scripts/post-build.js"
+    "build-nlp": "node scripts/build-nlp.cjs",
+    "tauri:build": "npm run build-nlp && npm run build && tauri build && node scripts/post-build.cjs"
   },
   "license": "MIT",
   "dependencies": {
