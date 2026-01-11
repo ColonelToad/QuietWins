@@ -59,6 +59,15 @@ jobs:
       - name: build NLP service
         run: npm run build-nlp
 
+      - name: verify NLP service binary
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ls -lh src-tauri/resources/nlp_service.exe
+          else
+            ls -lh src-tauri/resources/nlp_service
+          fi
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -83,7 +92,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tauri-build-${{ matrix.platform }}
-          path: src-tauri/target/release/bundle/msi/*.msi
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
 
       - name: Upload built artifacts (Ubuntu)
         if: matrix.platform == 'ubuntu-22.04'
