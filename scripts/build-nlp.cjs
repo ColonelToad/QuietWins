@@ -34,7 +34,7 @@ if (!fs.existsSync(resourcesDir)) {
 
 console.log(`[build-nlp] Building ${binaryName} with PyInstaller...`);
 try {
-  const cmd = `pyinstaller --onefile --noconsole --optimize 2 --distpath "${resourcesDir}" --buildpath build --specpath build --name nlp_service "${nlpServicePy}"`;
+  const cmd = `pyinstaller --onefile --noconsole --optimize 2 --distpath "${resourcesDir}" --workpath build --specpath build --name nlp_service "${nlpServicePy}"`;
   execSync(cmd, { stdio: 'inherit' });
   console.log(`[build-nlp] Successfully created ${outputBinary}`);
 } catch (error) {
