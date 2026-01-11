@@ -52,7 +52,7 @@ jobs:
         run: |
           pip install pyinstaller
           pip install -r src-tauri/requirements.txt
-          python -m spacy download en_core_web_sm
+          # spaCy model download not required now (service no longer depends on spaCy)
 
       - name: install frontend dependencies
         run: npm install # change to yarn or pnpm if needed
@@ -64,7 +64,11 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            ls -lh src-tauri/resources/nlp_service.exe || (echo 'Error: NLP service binary not found' && exit 1)
+            if [ -f src-tauri/resources/nlp_service.exe ] || [ -d src-tauri/resources/nlp_service ]; then
+              ls -lh src-tauri/resources/nlp_service* || true
+            else
+              echo 'Error: NLP service binary not found' && exit 1
+            fi
           else
             ls -lh src-tauri/resources/nlp_service || (echo 'Error: NLP service binary not found' && exit 1)
           fi
