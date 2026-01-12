@@ -293,6 +293,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 20px 24px;
   margin-bottom: 1.5rem;
 }
 .header-actions {

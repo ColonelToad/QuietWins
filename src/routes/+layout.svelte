@@ -22,32 +22,51 @@
       import('@tauri-apps/api/webviewWindow').then(({ WebviewWindow }) => {
         onAction(async (notification) => {
           console.log('Notification action received:', notification);
-          // Get or create the main window
           const mainWindow = WebviewWindow.getByLabel('main') || WebviewWindow.getCurrent();
-          // Show and focus the window
           await mainWindow.show();
           await mainWindow.setFocus();
           await mainWindow.unminimize();
-          // Optionally navigate to a specific page
-          // window.location.href = '/LogView';
         });
       });
     });
   }
 
   onMount(() => {
-    if (!localStorage.getItem('qw-onboarding-complete') && window.location.pathname !== '/onboarding') {
+    const path = window.location.pathname;
+    if (!localStorage.getItem('qw-onboarding-complete') && path !== '/onboarding') {
       goto('/onboarding');
+      return;
+    }
+    if (path === '/') {
+      goto('/LogView');
     }
   });
+  
+  // Determine if help button should show
+  $: showHelpButton = typeof window !== 'undefined' && 
+    window.location.pathname !== '/onboarding' && 
+    window.location.pathname !== '/LogView' && 
+    window.location.pathname !== '/InputWindow';
 </script>
+
 <a class="skip-link" href="#main-content">Skip to main content</a>
-<div style="position:relative; min-height:100vh;" id="main-content">
-  {#if typeof window !== 'undefined' && window.location.pathname !== '/onboarding' && window.location.pathname !== '/LogView' && window.location.pathname !== '/InputWindow'}
-    <button aria-label="Help" title="Help / Onboarding" style="position:fixed; top:64px; right:18px; z-index:900; background:none; border:none; cursor:pointer; padding:0; margin:0; width:36px; height:36px; border-radius:50%; box-shadow:0 1px 4px #0002; transition:background 0.2s;" on:click={() => goto('/onboarding')}>
+
+<!-- Header that stays at the top without overlapping content -->
+{#if showHelpButton}
+  <header class="app-header">
+    <div class="header-spacer"></div>
+    <button 
+      aria-label="Help" 
+      title="Help / Onboarding" 
+      class="help-button"
+      on:click={() => goto('/onboarding')}
+    >
       <HelpIcon />
     </button>
-  {/if}
+  </header>
+{/if}
+
+<div class="main-container" id="main-content">
   <slot />
 </div>
 
@@ -65,6 +84,45 @@
   .skip-link:focus {
     left: 1rem;
     top: 1rem;
+  }
+
+  .app-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 18px;
+    background: transparent;
+    position: relative;
+    z-index: 900;
+  }
+
+  .header-spacer {
+    flex: 1;
+  }
+
+  .help-button {
+    background: white;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    transition: background 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .help-button:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .main-container {
+    position: relative;
+    min-height: calc(100vh - 72px); /* Subtract header height */
   }
 
   :global(body) {

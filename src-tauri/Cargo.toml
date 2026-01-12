@@ -31,6 +31,6 @@ time = "0.3"
 chrono = "0.4"
 
 tauri-plugin-global-shortcut = "2"
-tauri-plugin-notification = "2.0"
+tauri-plugin-notification = "2.3.3"
 image = "0.25.9"
 
