@@ -21,16 +21,10 @@
   // Extract all lines/bullets from editor
   function getEditorLines(): { index: number, text: string }[] {
     if (!editorRef) return [];
-    const lines = [];
-    const divs = editorRef.querySelectorAll('div');
-    divs.forEach((div, idx) => {
-      const textSpan = div.querySelector('.text-content');
-      const text = textSpan ? textSpan.textContent.trim() : '';
-      if (text) {
-        lines.push({ index: idx, text });
-      }
-    });
-    return lines;
+    // Use innerText so we don't rely on specific DOM structure inside the contenteditable.
+    const raw = editorRef.innerText || '';
+    const parts = raw.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
+    return parts.map((text, idx) => ({ index: idx, text }));
   }
 
   // Suggest tags based on user prefs and text
@@ -66,25 +60,20 @@
   // Detect which line the cursor is on
   function detectCurrentLine() {
     if (!editorRef) return;
-    
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-    
-    const range = selection.getRangeAt(0);
-    let node = range.startContainer;
-    
-    // Walk up to find the div parent
-    while (node && node !== editorRef) {
-      if (node.parentNode === editorRef && node.nodeType === Node.ELEMENT_NODE) {
-        const divs = Array.from(editorRef.querySelectorAll('div'));
-        const index = divs.indexOf(node);
-        if (index !== -1 && index !== currentLineIndex) {
-          currentLineIndex = index;
-          updateCurrentLineTags();
-        }
-        return;
-      }
-      node = node.parentNode;
+    // Compute caret offset within the editable and derive line index from that
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0).cloneRange();
+    const pre = range.cloneRange();
+    pre.selectNodeContents(editorRef);
+    pre.setEnd(range.endContainer, range.endOffset);
+    const caretOffset = pre.toString().length;
+    const textBefore = (editorRef.innerText || '').slice(0, caretOffset);
+    const idx = textBefore.split(/\r?\n/).filter(s => true).length - 1;
+    const newIndex = Math.max(0, idx);
+    if (newIndex !== currentLineIndex) {
+      currentLineIndex = newIndex;
+      updateCurrentLineTags();
     }
   }
 
@@ -244,19 +233,16 @@
 
   function placeCaretAtEnd() {
     if (!editorRef) return;
-    const range = document.createRange();
-    const sel = window.getSelection();
-    const lastChild = editorRef.lastChild;
-    if (lastChild) {
-      const textSpan = lastChild.querySelector('.text-content');
-      if (textSpan) {
-        range.setStart(textSpan, 0);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    }
+    // Place caret at end of contenteditable
     editorRef.focus();
+    const range = document.createRange();
+    range.selectNodeContents(editorRef);
+    range.collapse(false);
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
   }
 </script>
 
