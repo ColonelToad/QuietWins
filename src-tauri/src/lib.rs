@@ -136,12 +136,27 @@ pub fn run() {
             let menu = Menu::with_items(app, &[&log_win, &view_log, &settings_item, &quit])?;
             // ...existing code...
             use tauri::image::Image;
-            let icon_bytes = std::fs::read("icons/icon-warm-16x16.png")?;
-            let img = image::load_from_memory(&icon_bytes)?.to_rgba8();
-            let (width, height) = img.dimensions();
-            let icon = Image::new_owned(img.into_raw(), width, height);
-            let _tray = TrayIconBuilder::new()
-                .icon(icon)
+            // Attempt to load tray icon with fault-tolerant error handling
+            let mut tray_builder = TrayIconBuilder::new();
+            match std::fs::read("icons/icon-warm-16x16.png") {
+                Ok(icon_bytes) => {
+                    match image::load_from_memory(&icon_bytes) {
+                        Ok(img) => {
+                            let img_rgba = img.to_rgba8();
+                            let (width, height) = img_rgba.dimensions();
+                            let icon = Image::new_owned(img_rgba.into_raw(), width, height);
+                            tray_builder = tray_builder.icon(icon);
+                        }
+                        Err(e) => {
+                            println!("[tray icon] Warning: Failed to parse icon image: {}. Continuing without icon.", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("[tray icon] Warning: Failed to read icon file: {}. Continuing without icon.", e);
+                }
+            }
+            let _tray = tray_builder
                 .menu(&menu)
                 .tooltip("QuickWins\nDouble click to log a new win")
                 .on_menu_event(move |app, event| {
