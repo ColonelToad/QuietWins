@@ -26,6 +26,7 @@
     "active": true,
     "targets": "all",
     "icon": [
+      "icons/icon-warm-16x16.png",
       "icons/icon-warm-32x32.png",
       "icons/icon-warm-128x128.png",
       "icons/icon-warm-256x256.png",
@@ -34,6 +35,9 @@
       "icons/icon-warm.icns",
       "icons/icon-warm.ico"
     ],
-    "resources": ["resources"]
+    "resources": [
+      "resources",
+      "icons/icon-warm-16x16.png"
+    ]
   }
 }
