@@ -138,24 +138,44 @@ pub fn run() {
             use tauri::image::Image;
             // Attempt to load tray icon with fault-tolerant error handling
             let mut tray_builder = TrayIconBuilder::new();
-            match std::fs::read("icons/icon-warm-16x16.png") {
-                Ok(icon_bytes) => {
-                    match image::load_from_memory(&icon_bytes) {
-                        Ok(img) => {
-                            let img_rgba = img.to_rgba8();
-                            let (width, height) = img_rgba.dimensions();
-                            let icon = Image::new_owned(img_rgba.into_raw(), width, height);
-                            tray_builder = tray_builder.icon(icon);
-                        }
-                        Err(e) => {
-                            println!("[tray icon] Warning: Failed to parse icon image: {}. Continuing without icon.", e);
+            
+            // Try to find icon in both development and production locations
+            let icon_candidates = vec![
+                std::path::PathBuf::from("icons/icon-warm-16x16.png"),
+                app.path().resource_dir().ok().map(|dir| dir.join("icons/icon-warm-16x16.png")).unwrap_or_default(),
+            ];
+            
+            let mut icon_loaded = false;
+            for icon_path in icon_candidates {
+                if !icon_path.exists() {
+                    continue;
+                }
+                match std::fs::read(&icon_path) {
+                    Ok(icon_bytes) => {
+                        match image::load_from_memory(&icon_bytes) {
+                            Ok(img) => {
+                                let img_rgba = img.to_rgba8();
+                                let (width, height) = img_rgba.dimensions();
+                                let icon = Image::new_owned(img_rgba.into_raw(), width, height);
+                                tray_builder = tray_builder.icon(icon);
+                                icon_loaded = true;
+                                break;
+                            }
+                            Err(e) => {
+                                println!("[tray icon] Warning: Failed to parse icon image at {}: {}. Trying next location.", icon_path.display(), e);
+                            }
                         }
                     }
-                }
-                Err(e) => {
-                    println!("[tray icon] Warning: Failed to read icon file: {}. Continuing without icon.", e);
+                    Err(e) => {
+                        println!("[tray icon] Warning: Failed to read icon file at {}: {}. Trying next location.", icon_path.display(), e);
+                    }
                 }
             }
+            
+            if !icon_loaded {
+                println!("[tray icon] Warning: Could not load tray icon from any location. Continuing without icon.");
+            }
+            
             let _tray = tray_builder
                 .menu(&menu)
                 .tooltip("QuickWins\nDouble click to log a new win")
