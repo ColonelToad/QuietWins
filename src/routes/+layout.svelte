@@ -44,7 +44,7 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <div style="position:relative; min-height:100vh;" id="main-content">
   {#if typeof window !== 'undefined' && window.location.pathname !== '/onboarding' && window.location.pathname !== '/LogView' && window.location.pathname !== '/InputWindow'}
-    <button aria-label="Help" title="Help / Onboarding" style="position:fixed; top:18px; right:18px; z-index:1000; background:none; border:none; cursor:pointer; padding:0; margin:0; width:36px; height:36px; border-radius:50%; box-shadow:0 1px 4px #0002; transition:background 0.2s;" on:click={() => goto('/onboarding')}>
+    <button aria-label="Help" title="Help / Onboarding" style="position:fixed; top:64px; right:18px; z-index:900; background:none; border:none; cursor:pointer; padding:0; margin:0; width:36px; height:36px; border-radius:50%; box-shadow:0 1px 4px #0002; transition:background 0.2s;" on:click={() => goto('/onboarding')}>
       <HelpIcon />
     </button>
   {/if}

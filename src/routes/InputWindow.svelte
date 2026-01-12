@@ -128,7 +128,8 @@
 
   onMount(() => {
     if (editorRef && !editorRef.innerHTML.trim()) {
-      editorRef.innerHTML = '<div><span class="bullet">•</span><span class="text-content"> </span></div>';
+      // Start empty so the CSS placeholder appears and users see the hint
+      editorRef.innerHTML = '';
       placeCaretAtEnd();
     }
   });

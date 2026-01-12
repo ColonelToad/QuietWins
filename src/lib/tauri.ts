@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+
 export interface WinWithChain {
   id: number;
   date: string;
@@ -10,7 +12,6 @@ export interface WinWithChain {
 export async function getWinsWithChains(): Promise<WinWithChain[]> {
   return await invoke('get_wins_with_chains');
 }
-import { invoke } from '@tauri-apps/api/core';
 
 export interface TagGraph {
   nodes: string[];
@@ -58,5 +59,12 @@ export async function restoreWin(id: number) {
 }
 
 export async function suggestTagsForText(text: string): Promise<string[]> {
-  return await invoke('suggest_tags_for_text', { text });
+  try {
+    const res = await invoke('suggest_tags_for_text', { text });
+    if (Array.isArray(res)) return res as string[];
+    return [];
+  } catch (e) {
+    console.warn('suggestTagsForText failed:', e);
+    return [];
+  }
 }
