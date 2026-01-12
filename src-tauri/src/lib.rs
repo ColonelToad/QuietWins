@@ -1,3 +1,6 @@
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[tauri::command]
 fn get_wins_with_chains(app: tauri::AppHandle) -> Result<Vec<db::WinWithChain>, String> {
     db::get_wins_with_chains(&app).map_err(|e| e.to_string())
@@ -136,14 +139,31 @@ pub fn run() {
             let menu = Menu::with_items(app, &[&log_win, &view_log, &settings_item, &quit])?;
             // ...existing code...
             use tauri::image::Image;
-            let icon_bytes = std::fs::read("icons/icon-warm-16x16.png")?;
-            let img = image::load_from_memory(&icon_bytes)?.to_rgba8();
-            let (width, height) = img.dimensions();
-            let icon = Image::new_owned(img.into_raw(), width, height);
-            let _tray = TrayIconBuilder::new()
-                .icon(icon)
+
+            // Robust tray icon loading: try to load 16x16 icon but don't fail startup if it isn't present or fails to parse.
+            let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("QuickWins\nDouble click to log a new win")
+                .tooltip("QuickWins\nDouble click to log a new win");
+
+            match std::fs::read("icons/icon-warm-16x16.png") {
+                Ok(icon_bytes) => match image::load_from_memory(&icon_bytes) {
+                    Ok(img) => {
+                        let img = img.to_rgba8();
+                        let (width, height) = img.dimensions();
+                        let icon = Image::new_owned(img.into_raw(), width, height);
+                        tray_builder = tray_builder.icon(icon);
+                        println!("[tray] Loaded 16x16 icon successfully");
+                    }
+                    Err(e) => {
+                        println!("[tray] Failed to parse icon-warm-16x16.png: {}", e);
+                    }
+                },
+                Err(e) => {
+                    println!("[tray] Icon file icons/icon-warm-16x16.png not found or unreadable: {}", e);
+                }
+            }
+
+            let _tray = tray_builder
                 .on_menu_event(move |app, event| {
                     tray::handle_tray_event(app, event);
                 })
