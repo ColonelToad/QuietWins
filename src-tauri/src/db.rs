@@ -220,7 +220,28 @@ pub fn init_db(app_handle: &tauri::AppHandle) -> Result<Connection> {
         )",
         [],
     )?;
+    // Seed with a default win if table is empty (first run)
+    let _ = seed_default_win(&conn);
     Ok(conn)
+}
+
+fn seed_default_win(conn: &Connection) -> Result<()> {
+    // Check if wins table is empty
+    let mut stmt = conn.prepare("SELECT COUNT(*) FROM wins")?;
+    let count: i64 = stmt.query_row([], |row| row.get(0))?;
+    if count == 0 {
+        println!("[seed_default_win] DB is empty, inserting default welcome win");
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let today = OffsetDateTime::now_utc()
+            .format(&time::format_description::parse("[year]-[month]-[day]").unwrap())
+            .unwrap_or_else(|_| "2025-01-01".to_string());
+        conn.execute(
+            "INSERT INTO wins (date, text, tags, created_at) VALUES (?1, ?2, ?3, ?4)",
+            (today, "Welcome to Quiet Wins! Log your first win here.", "welcome,start", now),
+        )?;
+        println!("[seed_default_win] Default win inserted");
+    }
+    Ok(())
 }
 
 fn ensure_db_integrity(db_path: &PathBuf, conn: &Connection) -> Result<()> {
