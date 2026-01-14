@@ -126,9 +126,9 @@ pub fn run() {
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
-                let _ = db::insert_mock_data(app.handle());
+                /* let _ = db::insert_mock_data(app.handle()); */
                 // Run NLP on mock data and print results
-                //crate::nlp::run_nlp_on_mock_data();
+                /* crate::nlp::run_nlp_on_mock_data(); */
             }
             // ...existing code...
             let log_win = MenuItemBuilder::new("Log Win").id("log_win").build(app)?;

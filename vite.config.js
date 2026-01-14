@@ -8,11 +8,8 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [sveltekit()],
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  
   server: {
     port: 1420,
     strictPort: true,
@@ -25,17 +22,20 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
   },
-  // Externalize Tauri API packages for SSR build
+  
+  // Don't externalize Tauri packages - let them be bundled
   ssr: {
-    noExternal: [],
+    noExternal: ['@tauri-apps/api', '@tauri-apps/plugin-notification'],
   },
+  
   build: {
-    rollupOptions: {
-      external: [/^@tauri-apps\//],
-    },
+    // Remove the external configuration that's breaking production
+    // rollupOptions: {
+    //   external: [/^@tauri-apps\//],
+    // },
+    target: 'esnext', // Support top-level await
   },
 }));

@@ -86,7 +86,7 @@ fn extract_chain_key(text: &str, tags: &str) -> String {
     }
     longest.to_string()
 }
-use super::mock_data;
+// use super::mock_data;
 use crate::nlp;
 use rusqlite::{Connection, Result};
 use serde::Serialize;
@@ -97,6 +97,7 @@ use tauri::Manager;
 use time::OffsetDateTime;
 
 /// Inserts mock wins for development/testing
+/*
 pub fn insert_mock_data(app_handle: &tauri::AppHandle) -> Result<()> {
     let db_path = get_db_path(app_handle);
     println!("[insert_mock_data] Using DB path: {}", db_path.display());
@@ -120,6 +121,7 @@ pub fn insert_mock_data(app_handle: &tauri::AppHandle) -> Result<()> {
     }
     Ok(())
 }
+*/
 
 #[derive(Serialize)]
 pub struct TagGraph {
