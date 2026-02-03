@@ -89,7 +89,7 @@ jobs:
         shell: bash
         run: |
           cd src-tauri/target/aarch64-apple-darwin/release/bundle/macos
-          zip -r QuietWins-arm64.zip "Quiet Wins.app"
+          zip -r QuietWins-arm64.zip QuietWins.app
           ls -lh QuietWins-arm64.zip
 
       - name: Create ZIP for macOS (Intel)
@@ -97,7 +97,7 @@ jobs:
         shell: bash
         run: |
           cd src-tauri/target/x86_64-apple-darwin/release/bundle/macos
-          zip -r QuietWins-x64.zip "Quiet Wins.app"
+          zip -r QuietWins-x64.zip QuietWins.app
           ls -lh QuietWins-x64.zip
 
       - name: Upload built artifacts (macOS ARM)

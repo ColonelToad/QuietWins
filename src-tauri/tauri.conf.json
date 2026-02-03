@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-app",
+  "productName": "QuietWins",
   "version": "0.1.0",
   "identifier": "com.legot.tauri-app",
   "build": {
