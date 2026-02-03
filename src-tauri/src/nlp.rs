@@ -31,7 +31,7 @@ pub async fn suggest_tags_async(text: &str) -> Vec<String> {
     if let Ok(resp) = resp {
         if let Ok(json) = resp.json::<serde_json::Value>().await {
             if let Some(results) = json["results"].as_array() {
-                if let Some(result) = results.get(0) {
+                if let Some(result) = results.first() {
                     // Sentiment
                     if let Some(sentiment) = result["sentiment"]["compound"].as_f64() {
                         if sentiment > 0.3 {

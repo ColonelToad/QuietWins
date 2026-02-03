@@ -235,15 +235,15 @@ pub fn get_mock_wins() -> Vec<MockWin<'static>> {
         let day = 1 + (i % 31);
         let text = match i % 10 {
             0 => format!("Did {} squats", 10 + i),
-            1 => format!("Ate fruit for breakfast"),
+            1 => "Ate fruit for breakfast".to_string(),
             2 => format!("Jogged for {} minutes", 15 + (i % 20)),
-            3 => format!("Took a nap in the afternoon"),
-            4 => format!("Played tennis with a friend"),
-            5 => format!("Did a mindfulness exercise"),
-            6 => format!("Went to the gym"),
-            7 => format!("Cooked a vegetarian dinner"),
-            8 => format!("Did a group workout session"),
-            _ => format!("Walked in the neighborhood"),
+            3 => "Took a nap in the afternoon".to_string(),
+            4 => "Played tennis with a friend".to_string(),
+            5 => "Did a mindfulness exercise".to_string(),
+            6 => "Went to the gym".to_string(),
+            7 => "Cooked a vegetarian dinner".to_string(),
+            8 => "Did a group workout session".to_string(),
+            _ => "Walked in the neighborhood".to_string(),
         };
         let tags = match i % 10 {
             0 => "squats,health,exercise",

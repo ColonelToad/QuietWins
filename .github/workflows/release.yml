@@ -84,13 +84,35 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Upload built artifacts (macOS)
-        if: startsWith(matrix.platform, 'macos')
+      - name: Create ZIP for macOS (ARM)
+        if: matrix.args == '--target aarch64-apple-darwin'
+        shell: bash
+        run: |
+          cd src-tauri/target/aarch64-apple-darwin/release/bundle/macos
+          zip -r QuietWins-arm64.zip "Quiet Wins.app"
+          ls -lh QuietWins-arm64.zip
+
+      - name: Create ZIP for macOS (Intel)
+        if: matrix.args == '--target x86_64-apple-darwin'
+        shell: bash
+        run: |
+          cd src-tauri/target/x86_64-apple-darwin/release/bundle/macos
+          zip -r QuietWins-x64.zip "Quiet Wins.app"
+          ls -lh QuietWins-x64.zip
+
+      - name: Upload built artifacts (macOS ARM)
+        if: matrix.args == '--target aarch64-apple-darwin'
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-build-${{ matrix.platform }}-${{ matrix.args }}
-          path: |
-            src-tauri/target/*/release/bundle/dmg/*.dmg
+          name: tauri-build-macos-arm64
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/macos/QuietWins-arm64.zip
+
+      - name: Upload built artifacts (macOS Intel)
+        if: matrix.args == '--target x86_64-apple-darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-macos-x64
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/macos/QuietWins-x64.zip
 
       - name: Upload built artifacts (Windows)
         if: matrix.platform == 'windows-latest'

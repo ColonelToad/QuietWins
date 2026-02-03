@@ -136,18 +136,16 @@ pub fn get_tag_graph(app_handle: &tauri::AppHandle) -> Result<TagGraph> {
     let tag_rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
     let mut tag_sets: Vec<HashSet<String>> = Vec::new();
     let mut all_tags = HashSet::new();
-    for row in tag_rows {
-        if let Ok(tag_str) = row {
-            let cleaned = tag_str.trim_matches(|c| c == '[' || c == ']' || c == '"');
-            let tags: HashSet<String> = cleaned
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
-            if !tags.is_empty() {
-                all_tags.extend(tags.iter().cloned());
-                tag_sets.push(tags);
-            }
+    for tag_str in tag_rows.flatten() {
+        let cleaned = tag_str.trim_matches(|c| c == '[' || c == ']' || c == '"');
+        let tags: HashSet<String> = cleaned
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !tags.is_empty() {
+            all_tags.extend(tags.iter().cloned());
+            tag_sets.push(tags);
         }
     }
     // Build edges: for each win, connect all pairs of tags in that win
@@ -239,7 +237,12 @@ fn seed_default_win(conn: &Connection) -> Result<()> {
             .unwrap_or_else(|_| "2025-01-01".to_string());
         conn.execute(
             "INSERT INTO wins (date, text, tags, created_at) VALUES (?1, ?2, ?3, ?4)",
-            (today, "Welcome to Quiet Wins! Log your first win here.", "welcome,start", now),
+            (
+                today,
+                "Welcome to Quiet Wins! Log your first win here.",
+                "welcome,start",
+                now,
+            ),
         )?;
         println!("[seed_default_win] Default win inserted");
     }
